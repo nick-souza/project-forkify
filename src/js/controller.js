@@ -33,11 +33,18 @@ function renderSpinner(parentEl) {
 //First API Call:
 async function showRecipe() {
 	try {
+		//Getting the current id from the serach bar so we can listen to it and change the rendering when it changes:
+		//Using the slice method to remove the hash (#) symbol and only use the actual id
+		const id = window.location.hash.slice(1);
+
+		//Guard clause in case the user does not input any hash code in the search bar:
+		if (!id) return;
+
 		//Rendering the spinner while the user loads the call from the api:
 		renderSpinner(recipeContainer);
 
 		const res = await fetch(
-			"https://forkify-api.herokuapp.com/api/v2/recipes/5ed6604591c37cdc054bc8fd"
+			`https://forkify-api.herokuapp.com/api/v2/recipes/${id}`
 		);
 		const data = await res.json();
 
@@ -170,3 +177,11 @@ async function showRecipe() {
 }
 
 showRecipe();
+
+//Listening for the recipe id and hash to change, so we can change the rendered recipe accordingly.
+//Also listening to the load event, to change the recipe when the link is copied and paste in the search bar;
+// window.addEventListener("hashchange", showRecipe);
+// window.addEventListener("load", showRecipe);
+
+//We can get rid of the duplicate code by:
+["hashchange", "load"].forEach((ev) => window.addEventListener(ev, showRecipe));

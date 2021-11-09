@@ -1,4 +1,7 @@
-import { async } from "regenerator-runtime";
+//Importing the config file, so we can use the API url and other constant variables:
+import { API_URL } from "./config";
+//Importing the helper file to get access to those functions:
+import { getJSON } from "./helpers";
 
 //Exporting the State object, responsible for keeping all the data for the app:
 export const state = {
@@ -9,12 +12,9 @@ export const state = {
 //Passing the id as a parameter because the controller is the one that will get it:
 export async function loadRecipe(id) {
 	try {
-		const res = await fetch(
-			`https://forkify-api.herokuapp.com/api/v2/recipes/${id}`
-		);
-		const data = await res.json();
-
-		if (!res.ok) throw new Error(`${data.message} (${res.status})`);
+		//Calling the function responsible to make the API call, passing in the global variable API_URL that is in the config file and the id that will be in the search bar;
+		//And since the return of that function will be the resolve value of the promise, making the data here another promise, we have to also await;
+		const data = await getJSON(`${API_URL}/${id}`);
 
 		//Creating a new variable to manipulate the recipe result from the call:
 		// let recipe = data.data.recipe;
@@ -33,6 +33,6 @@ export async function loadRecipe(id) {
 		};
 		console.log(recipe);
 	} catch (error) {
-		alert(error);
+		console.error(error);
 	}
 }

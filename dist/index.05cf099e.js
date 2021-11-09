@@ -469,13 +469,6 @@ var _recipeViewJsDefault = parcelHelpers.interopDefault(_recipeViewJs);
 var _stable = require("core-js/stable");
 var _runtime = require("regenerator-runtime/runtime");
 const recipeContainer = document.querySelector(".recipe");
-const timeout = function(s) {
-    return new Promise(function(_, reject) {
-        setTimeout(function() {
-            reject(new Error(`Request took too long! Timeout after ${s} second`));
-        }, s * 1000);
-    });
-};
 // https://forkify-api.herokuapp.com/v2
 //First API Call:
 async function controlRecipes() {
@@ -13591,16 +13584,19 @@ parcelHelpers.export(exports, "state", ()=>state
 //Passing the id as a parameter because the controller is the one that will get it:
 parcelHelpers.export(exports, "loadRecipe", ()=>loadRecipe
 );
-var _regeneratorRuntime = require("regenerator-runtime");
+//Importing the config file, so we can use the API url and other constant variables:
+var _config = require("./config");
+//Importing the helper file to get access to those functions:
+var _helpers = require("./helpers");
 const state = {
     recipe: {
     }
 };
 async function loadRecipe(id) {
     try {
-        const res = await fetch(`https://forkify-api.herokuapp.com/api/v2/recipes/${id}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(`${data.message} (${res.status})`);
+        //Calling the function responsible to make the API call, passing in the global variable API_URL that is in the config file and the id that will be in the search bar;
+        //And since the return of that function will be the resolve value of the promise, making the data here another promise, we have to also await;
+        const data = await _helpers.getJSON(`${_config.API_URL}/${id}`);
         //Creating a new variable to manipulate the recipe result from the call:
         // let recipe = data.data.recipe;
         //Since they have the same name we can use destructuring already:
@@ -13618,11 +13614,53 @@ async function loadRecipe(id) {
         };
         console.log(recipe);
     } catch (error) {
-        alert(error);
+        console.error(error);
     }
 }
 
-},{"regenerator-runtime":"1EBPE","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"82pEw":[function(require,module,exports) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","./config":"6V52N","./helpers":"9RX9R"}],"6V52N":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "API_URL", ()=>API_URL
+);
+parcelHelpers.export(exports, "TIMEOUT_SEC", ()=>TIMEOUT_SEC
+);
+const API_URL = "https://forkify-api.herokuapp.com/api/v2/recipes";
+const TIMEOUT_SEC = 10;
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"9RX9R":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "getJSON", ()=>getJSON
+);
+//Helper file that will contain helper functions that we will reuse many times accross the project:
+//Importing the config file:
+var _config = require("./config");
+//Function responsible to returning a rejected promise after a number of seconds, we can use this in case the user has some trouble loading the recipes, so the fetch does not run forever;
+function timeout(s) {
+    return new Promise(function(_, reject) {
+        setTimeout(function() {
+            reject(new Error(`Request took too long! Timeout after ${s} second`));
+        }, s * 1000);
+    });
+}
+async function getJSON(url) {
+    try {
+        //Using promise.race here to check which promise will resolve faster, the loading fetch or the timeout that will reject after the seconds that were passed as arguments;
+        const res = await Promise.race([
+            fetch(url),
+            timeout(_config.TIMEOUT_SEC)
+        ]);
+        const data = await res.json();
+        if (!res.ok) throw new Error(`${data.message} (${res.status})`);
+        return data;
+    } catch (error) {
+        //Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
+        throw error;
+    }
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","./config":"6V52N"}],"82pEw":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 //Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:

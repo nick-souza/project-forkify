@@ -1,0 +1,24 @@
+{
+	"name": "forkify",
+	"version": "1.0.0",
+	"description": "Recipe Application",
+	"default": "index.html",
+	"scripts": {
+		"start": "parcel index.html",
+		"build": "parcel build index.html"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/nsds26/project-forkify.git"
+	},
+	"author": "Nicolas Sá de Souza",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/nsds26/project-forkify/issues"
+	},
+	"homepage": "https://github.com/nsds26/project-forkify#readme",
+	"devDependencies": {
+		"@parcel/transformer-sass": "^2.0.1",
+		"parcel": "^2.0.1"
+	}
+}

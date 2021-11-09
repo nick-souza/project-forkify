@@ -33,6 +33,7 @@ export async function loadRecipe(id) {
 		};
 		console.log(recipe);
 	} catch (error) {
-		console.error(error);
+		//Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
+		throw error;
 	}
 }

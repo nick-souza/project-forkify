@@ -30,7 +30,8 @@ async function controlRecipes() {
 		//And since we dont have access here to the actual recipeView class, we have to create a new method to be able to render the recipes:
 		recipeView.render(model.state.recipe);
 	} catch (error) {
-		console.error(error);
+		//Calling the view to render the error message to the user:
+		recipeView.renderError();
 	}
 }
 

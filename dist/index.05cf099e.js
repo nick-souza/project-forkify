@@ -486,7 +486,8 @@ async function controlRecipes() {
         //And since we dont have access here to the actual recipeView class, we have to create a new method to be able to render the recipes:
         _recipeViewJsDefault.default.render(_modelJs.state.recipe);
     } catch (error) {
-        console.error(error);
+        //Calling the view to render the error message to the user:
+        _recipeViewJsDefault.default.renderError();
     }
 }
 function init() {
@@ -13608,7 +13609,8 @@ async function loadRecipe(id) {
         };
         console.log(recipe);
     } catch (error) {
-        console.error(error);
+        //Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
+        throw error;
     }
 }
 
@@ -13666,12 +13668,47 @@ class RecipeView {
     //Setting private variables:
     #parentElement = document.querySelector(".recipe");
     #data;
+    //Private field for the default error message;
+    #errorMessage = "Recipe not found. Please try again.";
+    //Private field for the default general message;
+    #message = "";
     render(data) {
         this.#data = data;
         const markup = this.#generateMarkup();
         //Removing the default message:
         this.#clear();
         //Inserting the markup to the html:
+        this.#parentElement.insertAdjacentHTML("afterbegin", markup);
+    }
+    //Method responsible for rendering the error to the users:
+    //Using the default to get the commom error message from the view itself;
+    renderError(message = this.#errorMessage) {
+        const markup = `
+			<div class="error">
+				<div>
+					<svg>
+					<use href="${_iconsSvgDefault.default}#icon-alert-triangle"></use>
+					</svg>
+				</div>
+				<p>${message}</p>
+			</div>
+		`;
+        this.#clear();
+        this.#parentElement.insertAdjacentHTML("afterbegin", markup);
+    }
+    //Method to render general messages to the user interface:
+    renderMessage(message1 = this.#message) {
+        const markup = `
+			<div class="message">
+				<div>
+					<svg>
+					<use href="${_iconsSvgDefault.default}#icon-smile"></use>
+					</svg>
+				</div>
+				<p>${message1}</p>
+			</div>
+		`;
+        this.#clear();
         this.#parentElement.insertAdjacentHTML("afterbegin", markup);
     }
     //Simple method to clear the parent html before rendering anythin into it:
@@ -13688,7 +13725,7 @@ class RecipeView {
 				</svg>
 			</div>
 		`;
-        this.#parentElement.innerHTML = "";
+        this.#clear();
         this.#parentElement.insertAdjacentHTML("afterbegin", markup);
     }
     //Method to take care of the listeners, using the PubSub Design Pattern, this method being the publisher, need access to the subscriber;

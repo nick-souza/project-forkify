@@ -8,6 +8,10 @@ class RecipeView {
 	//Setting private variables:
 	#parentElement = document.querySelector(".recipe");
 	#data;
+	//Private field for the default error message;
+	#errorMessage = "Recipe not found. Please try again.";
+	//Private field for the default general message;
+	#message = "";
 
 	render(data) {
 		this.#data = data;
@@ -17,6 +21,39 @@ class RecipeView {
 		this.#clear();
 
 		//Inserting the markup to the html:
+		this.#parentElement.insertAdjacentHTML("afterbegin", markup);
+	}
+
+	//Method responsible for rendering the error to the users:
+	//Using the default to get the commom error message from the view itself;
+	renderError(message = this.#errorMessage) {
+		const markup = `
+			<div class="error">
+				<div>
+					<svg>
+					<use href="${icons}#icon-alert-triangle"></use>
+					</svg>
+				</div>
+				<p>${message}</p>
+			</div>
+		`;
+		this.#clear();
+		this.#parentElement.insertAdjacentHTML("afterbegin", markup);
+	}
+
+	//Method to render general messages to the user interface:
+	renderMessage(message = this.#message) {
+		const markup = `
+			<div class="message">
+				<div>
+					<svg>
+					<use href="${icons}#icon-smile"></use>
+					</svg>
+				</div>
+				<p>${message}</p>
+			</div>
+		`;
+		this.#clear();
 		this.#parentElement.insertAdjacentHTML("afterbegin", markup);
 	}
 
@@ -35,7 +72,7 @@ class RecipeView {
 				</svg>
 			</div>
 		`;
-		this.#parentElement.innerHTML = "";
+		this.#clear();
 		this.#parentElement.insertAdjacentHTML("afterbegin", markup);
 	}
 

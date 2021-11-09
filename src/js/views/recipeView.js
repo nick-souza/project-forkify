@@ -39,6 +39,19 @@ class RecipeView {
 		this.#parentElement.insertAdjacentHTML("afterbegin", markup);
 	}
 
+	//Method to take care of the listeners, using the PubSub Design Pattern, this method being the publisher, need access to the subscriber;
+	addHandlerRender(handler) {
+		//Listening for the recipe id and hash to change, so we can change the rendered recipe accordingly.
+		//Also listening to the load event, to change the recipe when the link is copied and paste in the search bar;
+		// window.addEventListener("hashchange", controlRecipes);
+		// window.addEventListener("load", controlRecipes);
+
+		//We can get rid of the duplicate code by:
+		["hashchange", "load"].forEach((ev) =>
+			window.addEventListener(ev, handler)
+		);
+	}
+
 	//Since the render method will be present in all the views, is better to add the renderRecipe in a separete private method:
 	#generateMarkup() {
 		return `

@@ -9,9 +9,7 @@ import "regenerator-runtime/runtime";
 
 const recipeContainer = document.querySelector(".recipe");
 
-// https://forkify-api.herokuapp.com/v2
-
-//First API Call:
+//API Call:
 async function controlRecipes() {
 	try {
 		//Getting the current id from the serach bar so we can listen to it and change the rendering when it changes:
@@ -36,14 +34,10 @@ async function controlRecipes() {
 	}
 }
 
-controlRecipes();
+function init() {
+	//Using the PubSub Design Pattern;
+	//Passing the subscriber (controlRecipes) to the publisher in the recipeView, so it can handle the event listeners:
+	recipeView.addHandlerRender(controlRecipes);
+}
 
-//Listening for the recipe id and hash to change, so we can change the rendered recipe accordingly.
-//Also listening to the load event, to change the recipe when the link is copied and paste in the search bar;
-// window.addEventListener("hashchange", controlRecipes);
-// window.addEventListener("load", controlRecipes);
-
-//We can get rid of the duplicate code by:
-["hashchange", "load"].forEach((ev) =>
-	window.addEventListener(ev, controlRecipes)
-);
+init();

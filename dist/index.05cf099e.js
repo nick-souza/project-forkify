@@ -469,8 +469,7 @@ var _recipeViewJsDefault = parcelHelpers.interopDefault(_recipeViewJs);
 var _stable = require("core-js/stable");
 var _runtime = require("regenerator-runtime/runtime");
 const recipeContainer = document.querySelector(".recipe");
-// https://forkify-api.herokuapp.com/v2
-//First API Call:
+//API Call:
 async function controlRecipes() {
     try {
         //Getting the current id from the serach bar so we can listen to it and change the rendering when it changes:
@@ -490,17 +489,12 @@ async function controlRecipes() {
         console.error(error);
     }
 }
-controlRecipes();
-//Listening for the recipe id and hash to change, so we can change the rendered recipe accordingly.
-//Also listening to the load event, to change the recipe when the link is copied and paste in the search bar;
-// window.addEventListener("hashchange", controlRecipes);
-// window.addEventListener("load", controlRecipes);
-//We can get rid of the duplicate code by:
-[
-    "hashchange",
-    "load"
-].forEach((ev)=>window.addEventListener(ev, controlRecipes)
-);
+function init() {
+    //Using the PubSub Design Pattern;
+    //Passing the subscriber (controlRecipes) to the publisher in the recipeView, so it can handle the event listeners:
+    _recipeViewJsDefault.default.addHandlerRender(controlRecipes);
+}
+init();
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","./model.js":"1pVJj","./views/recipeView.js":"82pEw"}],"ciiiV":[function(require,module,exports) {
 exports.interopDefault = function(a) {
@@ -13696,6 +13690,19 @@ class RecipeView {
 		`;
         this.#parentElement.innerHTML = "";
         this.#parentElement.insertAdjacentHTML("afterbegin", markup);
+    }
+    //Method to take care of the listeners, using the PubSub Design Pattern, this method being the publisher, need access to the subscriber;
+    addHandlerRender(handler) {
+        //Listening for the recipe id and hash to change, so we can change the rendered recipe accordingly.
+        //Also listening to the load event, to change the recipe when the link is copied and paste in the search bar;
+        // window.addEventListener("hashchange", controlRecipes);
+        // window.addEventListener("load", controlRecipes);
+        //We can get rid of the duplicate code by:
+        [
+            "hashchange",
+            "load"
+        ].forEach((ev)=>window.addEventListener(ev, handler)
+        );
     }
     //Since the render method will be present in all the views, is better to add the renderRecipe in a separete private method:
      #generateMarkup() {

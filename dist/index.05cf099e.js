@@ -501,11 +501,11 @@ async function controlRecipes() {
         _recipeViewJsDefault.default.renderSpinner();
         //Updating results view to mark selected search results:
         _resultsViewJsDefault.default.update(_modelJs.getSearchResultsPage());
-        //Updating the bookmarks menu to mark selected search results:
-        _bookmarksViewJsDefault.default.update(_modelJs.state.bookmarks);
         //Calling the function from the model to load the recipes from the api, passing the id we got from the hashcode;
         //And since this is a async function, it always returns a promise, se we have to await it:
         await _modelJs.loadRecipe(id);
+        //Updating the bookmarks menu to mark selected search results:
+        _bookmarksViewJsDefault.default.update(_modelJs.state.bookmarks);
         //Now rendering the recipe:
         //And since we dont have access here to the actual recipeView class, we have to create a new method to be able to render the recipes:
         _recipeViewJsDefault.default.render(_modelJs.state.recipe);
@@ -672,7 +672,7 @@ async function loadRecipe(id) {
     try {
         //Calling the function responsible to make the API call, passing in the global variable API_URL that is in the config file and the id that will be in the search bar;
         //And since the return of that function will be the resolve value of the promise, making the data here another promise, we have to also await;
-        const data = await _helpers.getJSON(`${_config.API_URL}${id}`);
+        const data = await _helpers.AJAX(`${_config.API_URL}${id}?key=${_config.KEY}`);
         //Putting the created object in the state:
         state.recipe = createRecipeObject(data);
         //Now checking to see if there is a recipe already loaded in the bookmarks, so we attatch the bookmarked property and render the bookmarked icon:
@@ -689,7 +689,7 @@ async function loadSearchResults(query) {
     try {
         state.search.query = query;
         //Making a GET request to the api so we can get all the results based on the keyword the user searched for:
-        const data = await _helpers.getJSON(`${_config.API_URL}?search=${query}`);
+        const data = await _helpers.AJAX(`${_config.API_URL}?search=${query}&key=${_config.KEY}`);
         //Creating a new array from the array recipe from the result of the api call, so we can rename the objects:
         //And also storing the results in the state object:
         state.search.results = data.data.recipes.map((recipe)=>{
@@ -697,7 +697,11 @@ async function loadSearchResults(query) {
                 id: recipe.id,
                 title: recipe.title,
                 publisher: recipe.publisher,
-                image: recipe.image_url
+                image: recipe.image_url,
+                //Adding the property key, but only for the recipes we created:
+                ...recipe.key && {
+                    key: recipe.key
+                }
             };
         });
         //Reseting the page to 1 for the future searches:
@@ -757,7 +761,8 @@ async function uploadRecipe(newRecipe) {
         const ingredients = Object.entries(newRecipe).filter((entry)=>entry[0].startsWith("ingredient") && entry[1] !== ""
         ).map((ing)=>{
             //Now destructuring and replacing the blank spaces and spliting by the comma:
-            const ingArr = ing[1].replaceAll(" ", "").split(",");
+            const ingArr = ing[1].split(",").map((el)=>el.trim()
+            );
             //Checking if the array has the right length of 3:
             if (ingArr.length !== 3) throw new Error("Wrong ingredient format.");
             const [quantity, unit, description] = ingArr;
@@ -776,7 +781,7 @@ async function uploadRecipe(newRecipe) {
             servings: +newRecipe.servings,
             ingredients
         };
-        const data = await _helpers.sendJSON(`${_config.API_URL}?key=${_config.KEY}`, recipe);
+        const data = await _helpers.AJAX(`${_config.API_URL}?key=${_config.KEY}`, recipe);
         //Creating the object from the data of the new recipe
         state.recipe = createRecipeObject(data);
         //Adding the created recipe to the bookmarks:
@@ -846,10 +851,31 @@ exports.export = function(dest, destName, get) {
 },{}],"9RX9R":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "getJSON", ()=>getJSON
-);
-parcelHelpers.export(exports, "sendJSON", ()=>sendJSON
-);
+//One function to encapsulate the get and send JSON;
+//Setting the uploadData with a default of undefined, for when we are only making a get request:
+parcelHelpers.export(exports, "AJAX", ()=>AJAX
+) // export async function getJSON(url) {
+ // 	try {
+ // 	} catch (error) {}
+ // }
+ // export const sendJSON = async function (url, uploadData) {
+ // 	try {
+ // 		const fetchPro = fetch(url, {
+ // 			method: "POST",
+ // 			headers: {
+ // 				"Content-Type": "application/json",
+ // 			},
+ // 			body: JSON.stringify(uploadData),
+ // 		});
+ // 		const res = await Promise.race([fetchPro, timeout(TIMEOUT_SEC)]);
+ // 		const data = await res.json();
+ // 		if (!res.ok) throw new Error(`${data.message} (${res.status})`);
+ // 		return data;
+ // 	} catch (err) {
+ // 		throw err;
+ // 	}
+ // };
+;
 //Helper file that will contain helper functions that we will reuse many times accross the project:
 //Importing the config file:
 var _config = require("./config");
@@ -861,11 +887,19 @@ function timeout(s) {
         }, s * 1000);
     });
 }
-async function getJSON(url) {
+async function AJAX(url, uploadData) {
     try {
+        //So if the uploadData existis, setting the variable to be the sendJSON, otherwise to be the getJSON:
+        const fetchPro = uploadData ? fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(uploadData)
+        }) : fetch(url);
         //Using promise.race here to check which promise will resolve faster, the loading fetch or the timeout that will reject after the seconds that were passed as arguments;
         const res = await Promise.race([
-            fetch(url),
+            fetchPro,
             timeout(_config.TIMEOUT_SEC)
         ]);
         const data = await res.json();
@@ -876,26 +910,6 @@ async function getJSON(url) {
         throw error;
     }
 }
-const sendJSON = async function(url, uploadData) {
-    try {
-        const fetchPro = fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(uploadData)
-        });
-        const res = await Promise.race([
-            fetchPro,
-            timeout(_config.TIMEOUT_SEC)
-        ]);
-        const data = await res.json();
-        if (!res.ok) throw new Error(`${data.message} (${res.status})`);
-        return data;
-    } catch (err) {
-        throw err;
-    }
-};
 
 },{"./config":"6V52N","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"82pEw":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
@@ -939,9 +953,9 @@ class RecipeView extends _viewDefault.default {
             //Guard clause in case the user clicks anywhere but the btn:
             if (!btn) return;
             //With the data-update-to attribute in each btn, we know wheter to increase or decrease the servings, converting it to a number with the + sign
-            const updateTo = +btn.dataset.updateTo;
+            const { updateTo  } = btn.dataset;
             //Handle in case the number of servings from 0 to negative
-            if (updateTo > 0) handler1(updateTo);
+            if (+updateTo > 0) handler1(+updateTo);
         });
     }
     //Method to listen to the bookmark btn events, also using the PubSub:
@@ -991,7 +1005,10 @@ class RecipeView extends _viewDefault.default {
           </div>
           </div>
 
-          <div class="recipe__user-generated">
+          <div class="recipe__user-generated ${this._data.key ? "" : "hidden"}">
+						<svg>
+							<use href="${_iconsSvgDefault.default}#icon-user"></use>
+						</svg>	
           </div>
 
           <button class="btn--round btn--bookmark">

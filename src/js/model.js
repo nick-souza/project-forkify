@@ -1,7 +1,7 @@
 //Importing the config file, so we can use the API url and other constant variables:
 import { API_URL, RES_PER_PAGE, KEY } from "./config";
 //Importing the helper file to get access to those functions:
-import { getJSON, sendJSON } from "./helpers";
+import { AJAX } from "./helpers";
 
 //Exporting the State object, responsible for keeping all the data for the app:
 export const state = {
@@ -44,7 +44,7 @@ export async function loadRecipe(id) {
 	try {
 		//Calling the function responsible to make the API call, passing in the global variable API_URL that is in the config file and the id that will be in the search bar;
 		//And since the return of that function will be the resolve value of the promise, making the data here another promise, we have to also await;
-		const data = await getJSON(`${API_URL}${id}`);
+		const data = await AJAX(`${API_URL}${id}?key=${KEY}`);
 
 		//Putting the created object in the state:
 		state.recipe = createRecipeObject(data);
@@ -66,7 +66,7 @@ export async function loadSearchResults(query) {
 		state.search.query = query;
 
 		//Making a GET request to the api so we can get all the results based on the keyword the user searched for:
-		const data = await getJSON(`${API_URL}?search=${query}`);
+		const data = await AJAX(`${API_URL}?search=${query}&key=${KEY}`);
 
 		//Creating a new array from the array recipe from the result of the api call, so we can rename the objects:
 		//And also storing the results in the state object:
@@ -76,6 +76,8 @@ export async function loadSearchResults(query) {
 				title: recipe.title,
 				publisher: recipe.publisher,
 				image: recipe.image_url,
+				//Adding the property key, but only for the recipes we created:
+				...(recipe.key && { key: recipe.key }),
 			};
 		});
 
@@ -158,7 +160,7 @@ export async function uploadRecipe(newRecipe) {
 			.filter((entry) => entry[0].startsWith("ingredient") && entry[1] !== "")
 			.map((ing) => {
 				//Now destructuring and replacing the blank spaces and spliting by the comma:
-				const ingArr = ing[1].replaceAll(" ", "").split(",");
+				const ingArr = ing[1].split(",").map((el) => el.trim());
 
 				//Checking if the array has the right length of 3:
 				if (ingArr.length !== 3) throw new Error("Wrong ingredient format.");
@@ -178,7 +180,7 @@ export async function uploadRecipe(newRecipe) {
 			ingredients,
 		};
 
-		const data = await sendJSON(`${API_URL}?key=${KEY}`, recipe);
+		const data = await AJAX(`${API_URL}?key=${KEY}`, recipe);
 
 		//Creating the object from the data of the new recipe
 		state.recipe = createRecipeObject(data);

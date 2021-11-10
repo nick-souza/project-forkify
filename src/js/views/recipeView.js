@@ -42,10 +42,10 @@ class RecipeView extends View {
 			if (!btn) return;
 
 			//With the data-update-to attribute in each btn, we know wheter to increase or decrease the servings, converting it to a number with the + sign
-			const updateTo = +btn.dataset.updateTo;
+			const { updateTo } = btn.dataset;
 
 			//Handle in case the number of servings from 0 to negative
-			if (updateTo > 0) handler(updateTo);
+			if (+updateTo > 0) handler(+updateTo);
 		});
 	}
 
@@ -107,7 +107,10 @@ class RecipeView extends View {
           </div>
           </div>
 
-          <div class="recipe__user-generated">
+          <div class="recipe__user-generated ${this._data.key ? "" : "hidden"}">
+						<svg>
+							<use href="${icons}#icon-user"></use>
+						</svg>	
           </div>
 
           <button class="btn--round btn--bookmark">

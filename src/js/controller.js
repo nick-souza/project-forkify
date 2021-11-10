@@ -30,7 +30,6 @@ async function controlRecipes() {
 		//Getting the current id from the serach bar so we can listen to it and change the rendering when it changes:
 		//Using the slice method to remove the hash (#) symbol and only use the actual id
 		const id = window.location.hash.slice(1);
-
 		//Guard clause in case the user does not input any hash code in the search bar:
 		if (!id) return;
 
@@ -40,12 +39,12 @@ async function controlRecipes() {
 		//Updating results view to mark selected search results:
 		resultsView.update(model.getSearchResultsPage());
 
-		//Updating the bookmarks menu to mark selected search results:
-		bookmarksView.update(model.state.bookmarks);
-
 		//Calling the function from the model to load the recipes from the api, passing the id we got from the hashcode;
 		//And since this is a async function, it always returns a promise, se we have to await it:
 		await model.loadRecipe(id);
+
+		//Updating the bookmarks menu to mark selected search results:
+		bookmarksView.update(model.state.bookmarks);
 
 		//Now rendering the recipe:
 		//And since we dont have access here to the actual recipeView class, we have to create a new method to be able to render the recipes:

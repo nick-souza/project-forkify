@@ -12,10 +12,23 @@ function timeout(s) {
 	});
 }
 
-export async function getJSON(url) {
+//One function to encapsulate the get and send JSON;
+//Setting the uploadData with a default of undefined, for when we are only making a get request:
+export async function AJAX(url, uploadData = undefined) {
 	try {
+		//So if the uploadData existis, setting the variable to be the sendJSON, otherwise to be the getJSON:
+		const fetchPro = uploadData
+			? fetch(url, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(uploadData),
+			  })
+			: fetch(url);
+
 		//Using promise.race here to check which promise will resolve faster, the loading fetch or the timeout that will reject after the seconds that were passed as arguments;
-		const res = await Promise.race([fetch(url), timeout(TIMEOUT_SEC)]);
+		const res = await Promise.race([fetchPro, timeout(TIMEOUT_SEC)]);
 		const data = await res.json();
 
 		if (!res.ok) throw new Error(`${data.message} (${res.status})`);
@@ -27,22 +40,27 @@ export async function getJSON(url) {
 	}
 }
 
-export const sendJSON = async function (url, uploadData) {
-	try {
-		const fetchPro = fetch(url, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(uploadData),
-		});
+// export async function getJSON(url) {
+// 	try {
+// 	} catch (error) {}
+// }
 
-		const res = await Promise.race([fetchPro, timeout(TIMEOUT_SEC)]);
-		const data = await res.json();
+// export const sendJSON = async function (url, uploadData) {
+// 	try {
+// 		const fetchPro = fetch(url, {
+// 			method: "POST",
+// 			headers: {
+// 				"Content-Type": "application/json",
+// 			},
+// 			body: JSON.stringify(uploadData),
+// 		});
 
-		if (!res.ok) throw new Error(`${data.message} (${res.status})`);
-		return data;
-	} catch (err) {
-		throw err;
-	}
-};
+// 		const res = await Promise.race([fetchPro, timeout(TIMEOUT_SEC)]);
+// 		const data = await res.json();
+
+// 		if (!res.ok) throw new Error(`${data.message} (${res.status})`);
+// 		return data;
+// 	} catch (err) {
+// 		throw err;
+// 	}
+// };

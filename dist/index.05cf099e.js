@@ -471,6 +471,9 @@ var _searchViewJsDefault = parcelHelpers.interopDefault(_searchViewJs);
 //Importing the result view:
 var _resultsViewJs = require("./views/resultsView.js");
 var _resultsViewJsDefault = parcelHelpers.interopDefault(_resultsViewJs);
+//Importing the pagination view:
+var _paginationViewJs = require("./views/paginationView.js");
+var _paginationViewJsDefault = parcelHelpers.interopDefault(_paginationViewJs);
 //Imports for parcel to use when building to be able to polyfill
 var _stable = require("core-js/stable");
 var _runtime = require("regenerator-runtime/runtime");
@@ -509,9 +512,20 @@ async function controlSearchResults() {
         //No need to store it in a variable, since the model already saves it to the state object. Also have to await because it is a async function:
         await _modelJs.loadSearchResults(query);
         //Passing the state object with the stored results to the view so it can render it to the user:
-        _resultsViewJsDefault.default.render(_modelJs.state.search.results);
+        //And only calling the results we want per page, starting at page 1, because that is the default value from the model:
+        _resultsViewJsDefault.default.render(_modelJs.getSearchResultsPage());
+        //Displaying the pagination btns, passing the state object that contains the information of the pages:
+        _paginationViewJsDefault.default.render(_modelJs.state.search);
     } catch (error) {
     }
+}
+//Function that will be executed when only of the page btn is clicked:
+function controlPagination(goToPage) {
+    //Passing the state object with the stored results to the view so it can render it to the user:
+    //And only calling the results we want per page, starting at page 1, because that is the default value from the model:
+    _resultsViewJsDefault.default.render(_modelJs.getSearchResultsPage(goToPage));
+    //Displaying the pagination btns, passing the state object that contains the information of the pages:
+    _paginationViewJsDefault.default.render(_modelJs.state.search);
 }
 function init() {
     //Using the PubSub Design Pattern;
@@ -519,10 +533,12 @@ function init() {
     _recipeViewJsDefault.default.addHandlerRender(controlRecipes);
     //Passing the subscriber to the publisher in the searchView, so it can handle the event listeners:
     _searchViewJsDefault.default.addHandlerSearch(controlSearchResults);
+    //Passing the subscriber to the publisher in the searchView, so it can handle the event listeners:
+    _paginationViewJsDefault.default.addHandlerClick(controlPagination);
 }
 init();
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","./model.js":"1pVJj","./views/recipeView.js":"82pEw","./views/searchView.js":"jcq1q","./views/resultsView.js":"5peDB"}],"ciiiV":[function(require,module,exports) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","./model.js":"1pVJj","./views/recipeView.js":"82pEw","./views/searchView.js":"jcq1q","./views/resultsView.js":"5peDB","./views/paginationView.js":"2PAUD"}],"ciiiV":[function(require,module,exports) {
 exports.interopDefault = function(a) {
     return a && a.__esModule ? a : {
         default: a
@@ -13607,6 +13623,10 @@ parcelHelpers.export(exports, "loadRecipe", ()=>loadRecipe
 //Exporting the function that will be called by the controller, responsible for making the api call for the searches:
 parcelHelpers.export(exports, "loadSearchResults", ()=>loadSearchResults
 );
+//Function responsible for the pagination, taking in the page number as a parameter:
+//Since at this point we already have the results loaded, we only need to slice the results array according to the page size:
+parcelHelpers.export(exports, "getSearchResultsPage", ()=>getSearchResultsPage
+);
 //Importing the config file, so we can use the API url and other constant variables:
 var _config = require("./config");
 //Importing the helper file to get access to those functions:
@@ -13617,7 +13637,9 @@ const state = {
     //Now the search object, already containing the query and the result:
     search: {
         query: "",
-        results: []
+        results: [],
+        page: 1,
+        resultsPerPage: _config.RES_PER_PAGE
     }
 };
 async function loadRecipe(id) {
@@ -13665,6 +13687,16 @@ async function loadSearchResults(query) {
         throw error;
     }
 }
+function getSearchResultsPage(page = state.search.page) {
+    //Storing the page number we are in, so we can display the privious and the next page:
+    state.search.page = page;
+    //To switch between pages we need to calculate these values dynamically:
+    //We take the page wanted, subtract 1 and multiply by the ammount of results we want in the page. So page 1 - 1 is 0, multiplied by 10 is 0, so the first argument for the slice for tha page 1 will be 0:
+    const start = (page - 1) * state.search.resultsPerPage;
+    //And here just multiply by 10. So page 1 * 10 will result in 10, since the slice method does not count the last element, we will have 10 results by page:
+    const end = page * state.search.resultsPerPage;
+    return state.search.results.slice(start, end);
+}
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","./config":"6V52N","./helpers":"9RX9R"}],"6V52N":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
@@ -13673,8 +13705,11 @@ parcelHelpers.export(exports, "API_URL", ()=>API_URL
 );
 parcelHelpers.export(exports, "TIMEOUT_SEC", ()=>TIMEOUT_SEC
 );
+parcelHelpers.export(exports, "RES_PER_PAGE", ()=>RES_PER_PAGE
+);
 const API_URL = "https://forkify-api.herokuapp.com/api/v2/recipes/";
 const TIMEOUT_SEC = 10;
+const RES_PER_PAGE = 10;
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"9RX9R":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
@@ -14267,6 +14302,82 @@ class ResultsView extends _viewDefault.default {
 }
 exports.default = new ResultsView();
 
-},{"./View":"9dvKv","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","url:../../img/icons.svg":"5jwFy"}]},["kS06O","lA0Es"], "lA0Es", "parcelRequire3a11")
+},{"./View":"9dvKv","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","url:../../img/icons.svg":"5jwFy"}],"2PAUD":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//Class responsible for rendering the page btn in the user seraches:
+//Importing the parent View class:
+var _view = require("./View");
+var _viewDefault = parcelHelpers.interopDefault(_view);
+//Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
+var _iconsSvg = require("url:../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class PaginationView extends _viewDefault.default {
+    _parentElement = document.querySelector(".pagination");
+    //Publisher necessary to listing to the page btn events, needing the subscriber in the controller:
+    addHandlerClick(handler) {
+        //Since there may be two btns, we set the event listener to the parent element:
+        this._parentElement.addEventListener("click", function(e) {
+            //Finding which btn was clicked using the closest method:
+            const btn = e.target.closest(".btn--inline");
+            //Guard clause in case the user clicks anywhere but the btn:
+            if (!btn) return;
+            //With the data-goto attribute in each btn, we know where the pagination should go, converting it to a number with the + sign
+            const goToPage = +btn.dataset.goto;
+            //Passing the page num to the handler function to be used in the controller:
+            handler(goToPage);
+        });
+    }
+    //Method responsible for generating the html for each result, to be passed in the map method for the _data:
+    _generateMarkup() {
+        //Variable with the current page:
+        const curPage = this._data.page;
+        //Finding out how many pages there are for the current result:
+        //Dividing the total number of results by the number of results we want on a page (rounded by the next integer):
+        const numPages = Math.ceil(this._data.results.length / this._data.resultsPerPage);
+        //Page 1 and there are other pages:
+        if (curPage === 1 && numPages > 1) //Returning the next page btn
+        return `
+        <button data-goto="${curPage + 1}" class="btn--inline pagination__btn--next">
+          <span>Page ${curPage + 1}</span>
+          <svg class="search__icon">
+            <use href="${_iconsSvgDefault.default}#icon-arrow-right"></use>
+          </svg>
+        </button>
+      `;
+        //Last Page
+        if (curPage === numPages && numPages > 1) //Returning the previous page btn
+        return `
+        <button data-goto="${curPage - 1}" class="btn--inline pagination__btn--prev">
+          <svg class="search__icon">
+            <use href="${_iconsSvgDefault.default}#icon-arrow-left"></use>
+          </svg>
+          <span>Page ${curPage - 1}</span>
+        </button>
+      `;
+        //Other Page
+        if (curPage < numPages) //Returning both btns
+        return `
+        <button data-goto="${curPage - 1}" class="btn--inline pagination__btn--prev">
+          <svg class="search__icon">
+            <use href="${_iconsSvgDefault.default}#icon-arrow-left"></use>
+          </svg>
+          <span>Page ${curPage - 1}</span>
+        </button>
+
+        <button data-goto="${curPage + 1}" class="btn--inline pagination__btn--next">
+          <span>Page ${curPage + 1}</span>
+          <svg class="search__icon">
+            <use href="${_iconsSvgDefault.default}#icon-arrow-right"></use>
+          </svg>
+        </button>
+      `;
+        //Page 1 and there are NO other pages. Not rendering any btn because there is no other pages:
+        return "";
+    }
+}
+exports.default = new PaginationView();
+
+},{"./View":"9dvKv","url:../../img/icons.svg":"5jwFy","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}]},["kS06O","lA0Es"], "lA0Es", "parcelRequire3a11")
 
 //# sourceMappingURL=index.05cf099e.js.map

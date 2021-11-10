@@ -1,5 +1,5 @@
 //Importing the config file, so we can use the API url and other constant variables:
-import { API_URL } from "./config";
+import { API_URL, RES_PER_PAGE } from "./config";
 //Importing the helper file to get access to those functions:
 import { getJSON } from "./helpers";
 
@@ -10,6 +10,8 @@ export const state = {
 	search: {
 		query: "",
 		results: [],
+		page: 1,
+		resultsPerPage: RES_PER_PAGE,
 	},
 };
 
@@ -64,4 +66,21 @@ export async function loadSearchResults(query) {
 		//Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
 		throw error;
 	}
+}
+
+//Function responsible for the pagination, taking in the page number as a parameter:
+//Since at this point we already have the results loaded, we only need to slice the results array according to the page size:
+export function getSearchResultsPage(page = state.search.page) {
+	//Storing the page number we are in, so we can display the privious and the next page:
+	state.search.page = page;
+
+	//To switch between pages we need to calculate these values dynamically:
+
+	//We take the page wanted, subtract 1 and multiply by the ammount of results we want in the page. So page 1 - 1 is 0, multiplied by 10 is 0, so the first argument for the slice for tha page 1 will be 0:
+	const start = (page - 1) * state.search.resultsPerPage;
+
+	//And here just multiply by 10. So page 1 * 10 will result in 10, since the slice method does not count the last element, we will have 10 results by page:
+	const end = page * state.search.resultsPerPage;
+
+	return state.search.results.slice(start, end);
 }

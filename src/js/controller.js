@@ -6,6 +6,8 @@ import recipeView from "./views/recipeView.js";
 import searchView from "./views/searchView.js";
 //Importing the result view:
 import resultsView from "./views/resultsView.js";
+//Importing the pagination view:
+import paginationView from "./views/paginationView.js";
 
 //Imports for parcel to use when building to be able to polyfill
 import "core-js/stable";
@@ -57,8 +59,22 @@ async function controlSearchResults() {
 		await model.loadSearchResults(query);
 
 		//Passing the state object with the stored results to the view so it can render it to the user:
-		resultsView.render(model.state.search.results);
+		//And only calling the results we want per page, starting at page 1, because that is the default value from the model:
+		resultsView.render(model.getSearchResultsPage());
+
+		//Displaying the pagination btns, passing the state object that contains the information of the pages:
+		paginationView.render(model.state.search);
 	} catch (error) {}
+}
+
+//Function that will be executed when only of the page btn is clicked:
+function controlPagination(goToPage) {
+	//Passing the state object with the stored results to the view so it can render it to the user:
+	//And only calling the results we want per page, starting at page 1, because that is the default value from the model:
+	resultsView.render(model.getSearchResultsPage(goToPage));
+
+	//Displaying the pagination btns, passing the state object that contains the information of the pages:
+	paginationView.render(model.state.search);
 }
 
 function init() {
@@ -68,6 +84,9 @@ function init() {
 
 	//Passing the subscriber to the publisher in the searchView, so it can handle the event listeners:
 	searchView.addHandlerSearch(controlSearchResults);
+
+	//Passing the subscriber to the publisher in the searchView, so it can handle the event listeners:
+	paginationView.addHandlerClick(controlPagination);
 }
 
 init();

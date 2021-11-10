@@ -551,6 +551,9 @@ function controlAddBookmark() {
     //Now rendering all the saved bookmarks to the bookmark menu:
     _bookmarksViewJsDefault.default.render(_modelJs.state.bookmarks);
 }
+function controlBookmarks() {
+    _bookmarksViewJsDefault.default.render(_modelJs.state.bookmarks);
+}
 function init() {
     //Using the PubSub Design Pattern;
     //Passing the subscriber (controlRecipes) to the publisher in the recipeView, so it can handle the event listeners:
@@ -563,6 +566,7 @@ function init() {
     _recipeViewJsDefault.default.addHandlerUpdateServings(controlServings);
     //Passing the subscriber to the publisher in the recipeView, so it can handle the bookmark btn event listeners:
     _recipeViewJsDefault.default.addHandlerAddBookmark(controlAddBookmark);
+    _bookmarksViewJsDefault.default.addHandlerRender(controlBookmarks);
 }
 init();
 
@@ -679,11 +683,18 @@ function updateServings(newServings) {
     //Now update the servings in the state object:
     state.recipe.servings = newServings;
 }
+//Function to persist the bookmars using the local storage API
+function persistBookmark() {
+    //Getting the data and converting to a string to use the localStorage:
+    localStorage.setItem("bookmarks", JSON.stringify(state.bookmarks));
+}
 function addBookmark(recipe) {
     //Pushing the recipe to the state.bookmarks array:
     state.bookmarks.push(recipe);
     //Also mark the current recipe as bookmark, so checking if the recipe.id we are getting from the parameter is the same as the recipe.id in the state object, then add the property bookmarked to the recipe:
     if (recipe.id === state.recipe.id) state.recipe.bookmarked = true;
+    //Calling the persist bookmark
+    persistBookmark();
 }
 function deleteBookmark(id) {
     //Finding the index through the id
@@ -693,7 +704,17 @@ function deleteBookmark(id) {
     state.bookmarks.splice(index, 1);
     //Now maiking the current recipe as NOT bookmarked
     if (id === state.recipe.id) state.recipe.bookmarked = false;
+    //Calling the persist bookmark
+    persistBookmark();
 }
+//Loading the recipes from the local storage bookmarks when the application starts
+function init() {
+    //Getting it out and storing it in a variable:
+    const storage = localStorage.getItem("bookmarks");
+    //If there is any data, converting it back to json so we can use it
+    if (storage) state.bookmarks = JSON.parse(storage);
+}
+init();
 
 },{"./config":"6V52N","./helpers":"9RX9R","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"6V52N":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
@@ -14510,6 +14531,10 @@ class BookmarksView extends _viewDefault.default {
     _errorMessage = "No bookmarks yet. Find a nice recipe and bookmark it :)";
     //Private field for the default general message;
     _message = "";
+    //Method to render the bookmarks on page load:
+    addHandlerRender(handler) {
+        window.addEventListener("load", handler);
+    }
     //Method to generate html code so the parent method View.render can load it to the user screen:
     _generateMarkup() {
         //Since the result comming from the controller will be an array, we need to loop over it and then join it all together:

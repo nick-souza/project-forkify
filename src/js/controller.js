@@ -108,6 +108,10 @@ function controlAddBookmark() {
 	bookmarksView.render(model.state.bookmarks);
 }
 
+function controlBookmarks() {
+	bookmarksView.render(model.state.bookmarks);
+}
+
 function init() {
 	//Using the PubSub Design Pattern;
 	//Passing the subscriber (controlRecipes) to the publisher in the recipeView, so it can handle the event listeners:
@@ -124,6 +128,8 @@ function init() {
 
 	//Passing the subscriber to the publisher in the recipeView, so it can handle the bookmark btn event listeners:
 	recipeView.addHandlerAddBookmark(controlAddBookmark);
+
+	bookmarksView.addHandlerRender(controlBookmarks);
 }
 
 init();

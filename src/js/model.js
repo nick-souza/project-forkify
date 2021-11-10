@@ -108,6 +108,12 @@ export function updateServings(newServings) {
 	state.recipe.servings = newServings;
 }
 
+//Function to persist the bookmars using the local storage API
+function persistBookmark() {
+	//Getting the data and converting to a string to use the localStorage:
+	localStorage.setItem("bookmarks", JSON.stringify(state.bookmarks));
+}
+
 //Function that receives a recipe, and sets it as a bookmark:
 export function addBookmark(recipe) {
 	//Pushing the recipe to the state.bookmarks array:
@@ -115,6 +121,9 @@ export function addBookmark(recipe) {
 
 	//Also mark the current recipe as bookmark, so checking if the recipe.id we are getting from the parameter is the same as the recipe.id in the state object, then add the property bookmarked to the recipe:
 	if (recipe.id === state.recipe.id) state.recipe.bookmarked = true;
+
+	//Calling the persist bookmark
+	persistBookmark();
 }
 
 //Function to remove bookmarked recipe
@@ -127,4 +136,18 @@ export function deleteBookmark(id) {
 
 	//Now maiking the current recipe as NOT bookmarked
 	if (id === state.recipe.id) state.recipe.bookmarked = false;
+
+	//Calling the persist bookmark
+	persistBookmark();
 }
+
+//Loading the recipes from the local storage bookmarks when the application starts
+function init() {
+	//Getting it out and storing it in a variable:
+	const storage = localStorage.getItem("bookmarks");
+
+	//If there is any data, converting it back to json so we can use it
+	if (storage) state.bookmarks = JSON.parse(storage);
+}
+
+init();

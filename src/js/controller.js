@@ -2,6 +2,8 @@
 import * as model from "./model.js";
 //Importing the recipe view:
 import recipeView from "./views/recipeView.js";
+//Importing the search view:
+import searchView from "./views/searchView.js";
 
 //Imports for parcel to use when building to be able to polyfill
 import "core-js/stable";
@@ -35,10 +37,28 @@ async function controlRecipes() {
 	}
 }
 
+//Function resposible for calling the model function to search the recipes, passing in the query. Since the model function returns a promise, we have to handle that as well:
+async function controlSearchResults() {
+	try {
+		//Getting the query for the api call from the view:
+		const query = searchView.getQuery();
+		//Guard clause in case there is no query:
+		if (!query) return;
+
+		//No need to store it in a variable, since the model already saves it to the state object. Also have to await because it is a async function:
+		await model.loadSearchResults(query);
+
+		console.log(model.state.search.results);
+	} catch (error) {}
+}
+
 function init() {
 	//Using the PubSub Design Pattern;
 	//Passing the subscriber (controlRecipes) to the publisher in the recipeView, so it can handle the event listeners:
 	recipeView.addHandlerRender(controlRecipes);
+
+	//Passing the subscriber to the publisher in the searchView, so it can handle the event listeners:
+	searchView.addHandlerSearch(controlSearchResults);
 }
 
 init();

@@ -465,6 +465,9 @@ var _modelJs = require("./model.js");
 //Importing the recipe view:
 var _recipeViewJs = require("./views/recipeView.js");
 var _recipeViewJsDefault = parcelHelpers.interopDefault(_recipeViewJs);
+//Importing the search view:
+var _searchViewJs = require("./views/searchView.js");
+var _searchViewJsDefault = parcelHelpers.interopDefault(_searchViewJs);
 //Imports for parcel to use when building to be able to polyfill
 var _stable = require("core-js/stable");
 var _runtime = require("regenerator-runtime/runtime");
@@ -490,14 +493,29 @@ async function controlRecipes() {
         _recipeViewJsDefault.default.renderError();
     }
 }
+//Function resposible for calling the model function to search the recipes, passing in the query. Since the model function returns a promise, we have to handle that as well:
+async function controlSearchResults() {
+    try {
+        //Getting the query for the api call from the view:
+        const query = _searchViewJsDefault.default.getQuery();
+        //Guard clause in case there is no query:
+        if (!query) return;
+        //No need to store it in a variable, since the model already saves it to the state object. Also have to await because it is a async function:
+        await _modelJs.loadSearchResults(query);
+        console.log(_modelJs.state.search.results);
+    } catch (error) {
+    }
+}
 function init() {
     //Using the PubSub Design Pattern;
     //Passing the subscriber (controlRecipes) to the publisher in the recipeView, so it can handle the event listeners:
     _recipeViewJsDefault.default.addHandlerRender(controlRecipes);
+    //Passing the subscriber to the publisher in the searchView, so it can handle the event listeners:
+    _searchViewJsDefault.default.addHandlerSearch(controlSearchResults);
 }
 init();
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","./model.js":"1pVJj","./views/recipeView.js":"82pEw"}],"ciiiV":[function(require,module,exports) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","./model.js":"1pVJj","./views/recipeView.js":"82pEw","./views/searchView.js":"jcq1q"}],"ciiiV":[function(require,module,exports) {
 exports.interopDefault = function(a) {
     return a && a.__esModule ? a : {
         default: a
@@ -13579,19 +13597,27 @@ parcelHelpers.export(exports, "state", ()=>state
 //Passing the id as a parameter because the controller is the one that will get it:
 parcelHelpers.export(exports, "loadRecipe", ()=>loadRecipe
 );
+//Exporting the function that will be called by the controller, responsible for making the api call for the searches:
+parcelHelpers.export(exports, "loadSearchResults", ()=>loadSearchResults
+);
 //Importing the config file, so we can use the API url and other constant variables:
 var _config = require("./config");
 //Importing the helper file to get access to those functions:
 var _helpers = require("./helpers");
 const state = {
     recipe: {
+    },
+    //Now the search object, already containing the query and the result:
+    search: {
+        query: "",
+        results: []
     }
 };
 async function loadRecipe(id) {
     try {
         //Calling the function responsible to make the API call, passing in the global variable API_URL that is in the config file and the id that will be in the search bar;
         //And since the return of that function will be the resolve value of the promise, making the data here another promise, we have to also await;
-        const data = await _helpers.getJSON(`${_config.API_URL}/${id}`);
+        const data = await _helpers.getJSON(`${_config.API_URL}${id}`);
         //Creating a new variable to manipulate the recipe result from the call:
         // let recipe = data.data.recipe;
         //Since they have the same name we can use destructuring already:
@@ -13613,6 +13639,26 @@ async function loadRecipe(id) {
         throw error;
     }
 }
+async function loadSearchResults(query) {
+    try {
+        state.search.query = query;
+        //Making a GET request to the api so we can get all the results based on the keyword the user searched for:
+        const data = await _helpers.getJSON(`${_config.API_URL}?search=${query}`);
+        //Creating a new array from the array recipe from the result of the api call, so we can rename the objects:
+        //And also storing the results in the state object:
+        state.search.results = data.data.recipes.map((recipe)=>{
+            return {
+                id: recipe.id,
+                title: recipe.title,
+                publisher: recipe.publisher,
+                image: recipe.image_url
+            };
+        });
+    } catch (error) {
+        //Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
+        throw error;
+    }
+}
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","./config":"6V52N","./helpers":"9RX9R"}],"6V52N":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
@@ -13621,7 +13667,7 @@ parcelHelpers.export(exports, "API_URL", ()=>API_URL
 );
 parcelHelpers.export(exports, "TIMEOUT_SEC", ()=>TIMEOUT_SEC
 );
-const API_URL = "https://forkify-api.herokuapp.com/api/v2/recipes";
+const API_URL = "https://forkify-api.herokuapp.com/api/v2/recipes/";
 const TIMEOUT_SEC = 10;
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"9RX9R":[function(require,module,exports) {
@@ -14129,6 +14175,35 @@ Fraction.primeFactors = function(n) {
 };
 module.exports.Fraction = Fraction;
 
-},{}]},["kS06O","lA0Es"], "lA0Es", "parcelRequire3a11")
+},{}],"jcq1q":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//Class responsible for handling the search bar and btn for the user interface, passing the values to the controller to make the query:
+class SearchView {
+    //Selecting the parent element that contains the search bar and the button:
+    #parentEl = document.querySelector(".search");
+    //Method for returning whatever the user has typed in the search bar, selecting the form field and getting the value:
+    getQuery() {
+        const query = this.#parentEl.querySelector(".search__field").value;
+        this.#clearInout();
+        return query;
+    }
+    //Publisher necessary to listing to the btn events, needing the subscriber in the controller:
+    addHandlerSearch(handler) {
+        this.#parentEl.addEventListener("submit", function(e) {
+            //Preventing the form from realoading the page:
+            e.preventDefault();
+            //Now calling the handler function coming from the controller:
+            handler();
+        });
+    }
+    //Clearing the input field aftier hiting submit:
+     #clearInout() {
+        return this.#parentEl.querySelector(".search__field").value = "";
+    }
+}
+exports.default = new SearchView();
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}]},["kS06O","lA0Es"], "lA0Es", "parcelRequire3a11")
 
 //# sourceMappingURL=index.05cf099e.js.map

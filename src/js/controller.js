@@ -8,6 +8,8 @@ import searchView from "./views/searchView.js";
 import resultsView from "./views/resultsView.js";
 //Importing the pagination view:
 import paginationView from "./views/paginationView.js";
+//Importing the bookmarks view:
+import bookmarksView from "./views/bookmarksView.js";
 
 //Imports for parcel to use when building to be able to polyfill
 import "core-js/stable";
@@ -33,6 +35,9 @@ async function controlRecipes() {
 
 		//Updating results view to mark selected search results:
 		resultsView.update(model.getSearchResultsPage());
+
+		//Updating the bookmarks menu to mark selected search results:
+		bookmarksView.update(model.state.bookmarks);
 
 		//Calling the function from the model to load the recipes from the api, passing the id we got from the hashcode;
 		//And since this is a async function, it always returns a promise, se we have to await it:
@@ -90,6 +95,19 @@ function controlServings(newServings) {
 	recipeView.update(model.state.recipe);
 }
 
+//Function to add recipes to the bookmark
+function controlAddBookmark() {
+	//Checking wheter or not the recipe is bookmarked:
+	if (!model.state.recipe.bookmarked) model.addBookmark(model.state.recipe);
+	else model.deleteBookmark(model.state.recipe.id);
+
+	//Now using the update method to only change the bookmark icon, not the entire recipe:
+	recipeView.update(model.state.recipe);
+
+	//Now rendering all the saved bookmarks to the bookmark menu:
+	bookmarksView.render(model.state.bookmarks);
+}
+
 function init() {
 	//Using the PubSub Design Pattern;
 	//Passing the subscriber (controlRecipes) to the publisher in the recipeView, so it can handle the event listeners:
@@ -98,11 +116,14 @@ function init() {
 	//Passing the subscriber to the publisher in the searchView, so it can handle the event listeners:
 	searchView.addHandlerSearch(controlSearchResults);
 
-	//Passing the subscriber to the publisher in the paginationView, so it can handle the event listeners:
+	//Passing the subscriber to the publisher in the paginationView, so it can handle the btn pagination event listeners:
 	paginationView.addHandlerClick(controlPagination);
 
-	//Passing the subscriber to the publisher in the recipeView, so it can handle the event listeners:
+	//Passing the subscriber to the publisher in the recipeView, so it can handle the btn servings event listeners:
 	recipeView.addHandlerUpdateServings(controlServings);
+
+	//Passing the subscriber to the publisher in the recipeView, so it can handle the bookmark btn event listeners:
+	recipeView.addHandlerAddBookmark(controlAddBookmark);
 }
 
 init();

@@ -474,6 +474,9 @@ var _resultsViewJsDefault = parcelHelpers.interopDefault(_resultsViewJs);
 //Importing the pagination view:
 var _paginationViewJs = require("./views/paginationView.js");
 var _paginationViewJsDefault = parcelHelpers.interopDefault(_paginationViewJs);
+//Importing the bookmarks view:
+var _bookmarksViewJs = require("./views/bookmarksView.js");
+var _bookmarksViewJsDefault = parcelHelpers.interopDefault(_bookmarksViewJs);
 //Imports for parcel to use when building to be able to polyfill
 var _stable = require("core-js/stable");
 var _runtime = require("regenerator-runtime/runtime");
@@ -491,6 +494,8 @@ async function controlRecipes() {
         _recipeViewJsDefault.default.renderSpinner();
         //Updating results view to mark selected search results:
         _resultsViewJsDefault.default.update(_modelJs.getSearchResultsPage());
+        //Updating the bookmarks menu to mark selected search results:
+        _bookmarksViewJsDefault.default.update(_modelJs.state.bookmarks);
         //Calling the function from the model to load the recipes from the api, passing the id we got from the hashcode;
         //And since this is a async function, it always returns a promise, se we have to await it:
         await _modelJs.loadRecipe(id);
@@ -536,20 +541,32 @@ function controlServings(newServings) {
     //Now just calling the update method to only change the elements that were affected by that change:
     _recipeViewJsDefault.default.update(_modelJs.state.recipe);
 }
+//Function to add recipes to the bookmark
+function controlAddBookmark() {
+    //Checking wheter or not the recipe is bookmarked:
+    if (!_modelJs.state.recipe.bookmarked) _modelJs.addBookmark(_modelJs.state.recipe);
+    else _modelJs.deleteBookmark(_modelJs.state.recipe.id);
+    //Now using the update method to only change the bookmark icon, not the entire recipe:
+    _recipeViewJsDefault.default.update(_modelJs.state.recipe);
+    //Now rendering all the saved bookmarks to the bookmark menu:
+    _bookmarksViewJsDefault.default.render(_modelJs.state.bookmarks);
+}
 function init() {
     //Using the PubSub Design Pattern;
     //Passing the subscriber (controlRecipes) to the publisher in the recipeView, so it can handle the event listeners:
     _recipeViewJsDefault.default.addHandlerRender(controlRecipes);
     //Passing the subscriber to the publisher in the searchView, so it can handle the event listeners:
     _searchViewJsDefault.default.addHandlerSearch(controlSearchResults);
-    //Passing the subscriber to the publisher in the paginationView, so it can handle the event listeners:
+    //Passing the subscriber to the publisher in the paginationView, so it can handle the btn pagination event listeners:
     _paginationViewJsDefault.default.addHandlerClick(controlPagination);
-    //Passing the subscriber to the publisher in the recipeView, so it can handle the event listeners:
+    //Passing the subscriber to the publisher in the recipeView, so it can handle the btn servings event listeners:
     _recipeViewJsDefault.default.addHandlerUpdateServings(controlServings);
+    //Passing the subscriber to the publisher in the recipeView, so it can handle the bookmark btn event listeners:
+    _recipeViewJsDefault.default.addHandlerAddBookmark(controlAddBookmark);
 }
 init();
 
-},{"./model.js":"1pVJj","./views/recipeView.js":"82pEw","./views/searchView.js":"jcq1q","./views/resultsView.js":"5peDB","./views/paginationView.js":"2PAUD","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"1pVJj":[function(require,module,exports) {
+},{"./model.js":"1pVJj","./views/recipeView.js":"82pEw","./views/searchView.js":"jcq1q","./views/resultsView.js":"5peDB","./views/paginationView.js":"2PAUD","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","./views/bookmarksView.js":"764v9"}],"1pVJj":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "state", ()=>state
@@ -568,6 +585,12 @@ parcelHelpers.export(exports, "getSearchResultsPage", ()=>getSearchResultsPage
 //Function that will update the ingredients quantity values of the recipe according to the servings that will be coming from the controller:
 parcelHelpers.export(exports, "updateServings", ()=>updateServings
 );
+//Function that receives a recipe, and sets it as a bookmark:
+parcelHelpers.export(exports, "addBookmark", ()=>addBookmark
+);
+//Function to remove bookmarked recipe
+parcelHelpers.export(exports, "deleteBookmark", ()=>deleteBookmark
+);
 //Importing the config file, so we can use the API url and other constant variables:
 var _config = require("./config");
 //Importing the helper file to get access to those functions:
@@ -581,7 +604,9 @@ const state = {
         results: [],
         page: 1,
         resultsPerPage: _config.RES_PER_PAGE
-    }
+    },
+    //Array to store the bookmarks:
+    bookmarks: []
 };
 async function loadRecipe(id) {
     try {
@@ -603,6 +628,11 @@ async function loadRecipe(id) {
             cookingTime: recipe.cooking_time,
             ingredients: recipe.ingredients
         };
+        //Now checking to see if there is a recipe already loaded in the bookmarks, so we attatch the bookmarked property and render the bookmarked icon:
+        //So every recipe we load will habe the bookmarked property to either true or false;
+        if (state.bookmarks.some((bookmark)=>bookmark.id === id
+        )) state.recipe.bookmarked = true;
+        else state.recipe.bookmarked = false;
     } catch (error) {
         //Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
         throw error;
@@ -623,6 +653,8 @@ async function loadSearchResults(query) {
                 image: recipe.image_url
             };
         });
+        //Reseting the page to 1 for the future searches:
+        state.search.page = 1;
     } catch (error) {
         //Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
         throw error;
@@ -646,6 +678,21 @@ function updateServings(newServings) {
     });
     //Now update the servings in the state object:
     state.recipe.servings = newServings;
+}
+function addBookmark(recipe) {
+    //Pushing the recipe to the state.bookmarks array:
+    state.bookmarks.push(recipe);
+    //Also mark the current recipe as bookmark, so checking if the recipe.id we are getting from the parameter is the same as the recipe.id in the state object, then add the property bookmarked to the recipe:
+    if (recipe.id === state.recipe.id) state.recipe.bookmarked = true;
+}
+function deleteBookmark(id) {
+    //Finding the index through the id
+    const index = state.bookmarks.findIndex((el)=>el.id === id
+    );
+    //Using the splice method to remove an item from the array, using the index
+    state.bookmarks.splice(index, 1);
+    //Now maiking the current recipe as NOT bookmarked
+    if (id === state.recipe.id) state.recipe.bookmarked = false;
 }
 
 },{"./config":"6V52N","./helpers":"9RX9R","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"6V52N":[function(require,module,exports) {
@@ -770,6 +817,14 @@ class RecipeView extends _viewDefault.default {
             if (updateTo > 0) handler1(updateTo);
         });
     }
+    //Method to listen to the bookmark btn events, also using the PubSub:
+    addHandlerAddBookmark(handler2) {
+        this._parentElement.addEventListener("click", function(e) {
+            const btn = e.target.closest(".btn--bookmark");
+            if (!btn) return;
+            handler2();
+        });
+    }
     //Since the render method will be present in all the views, is better to add the renderRecipe in a separete private method:
     _generateMarkup() {
         return `
@@ -810,12 +865,11 @@ class RecipeView extends _viewDefault.default {
           </div>
 
           <div class="recipe__user-generated">
-          
           </div>
 
-          <button class="btn--round">
+          <button class="btn--round btn--bookmark">
             <svg class="">
-                <use href="${_iconsSvgDefault.default}#icon-bookmark-fill"></use>
+                <use href="${_iconsSvgDefault.default}#icon-bookmark${this._data.bookmarked ? "-fill" : ""}"></use>
             </svg>
           </button>
       </div>
@@ -934,7 +988,7 @@ class View {
             const curEl = curElements[i];
             //Now if the newEl is different from the curEl AND if the node is an actual text, we can change it:
             //The method nodeValue returns null for all elementes that are not texts, and we can use it since we only want to change the text content
-            if (!newEl.isEqualNode(curEl) && newEl.firstChild.nodeValue.trim() !== "") curEl.textContent = newEl.textContent;
+            if (!newEl.isEqualNode(curEl) && newEl.firstChild?.nodeValue.trim() !== "") curEl.textContent = newEl.textContent;
             //And now we need to do the same but for attributes, since the btns contains different attributes like increasing the servings ammount
             if (!newEl.isEqualNode(curEl)) Array.from(newEl.attributes).forEach((att)=>curEl.setAttribute(att.name, att.value)
             );
@@ -14442,6 +14496,47 @@ try {
     else Function("r", "regeneratorRuntime = r")(runtime);
 }
 
-},{}]},["kS06O","lA0Es"], "lA0Es", "parcelRequire3a11")
+},{}],"764v9":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//Class responsible for rendering the search results to the user:
+//Importing the parent View class:
+var _view = require("./View");
+var _viewDefault = parcelHelpers.interopDefault(_view);
+//Importing the PreviewView to serve as a parent to generate the html code:
+class BookmarksView extends _viewDefault.default {
+    _parentElement = document.querySelector(".bookmarks__list");
+    //Private field for the default error message;
+    _errorMessage = "No bookmarks yet. Find a nice recipe and bookmark it :)";
+    //Private field for the default general message;
+    _message = "";
+    //Method to generate html code so the parent method View.render can load it to the user screen:
+    _generateMarkup() {
+        //Since the result comming from the controller will be an array, we need to loop over it and then join it all together:
+        return this._data.map(this._generateMarkupPreview).join("");
+    }
+    //Method responsible for generating the html for each result, to be passed in the map method for the _data:
+    _generateMarkupPreview(result) {
+        //Functionality to make the current recipe selected, active
+        //Getting the id from the search bar, minus the #symbol:
+        const id = window.location.hash.slice(1);
+        return `
+      <li class="preview">
+        <a class="preview__link ${result.id === id ? "preview__link--active" : ""}" href="#${result.id}">
+        <figure class="preview__fig">
+            <img src="${result.image}" alt="${result.title}" />
+        </figure>
+        <div class="preview__data">
+          <h4 class="preview__title">${result.title}</h4>
+          <p class="preview__publisher">${result.publisher}</p>
+        </div>
+        </a>
+      </li>
+    `;
+    }
+}
+exports.default = new BookmarksView();
+
+},{"./View":"9dvKv","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}]},["kS06O","lA0Es"], "lA0Es", "parcelRequire3a11")
 
 //# sourceMappingURL=index.05cf099e.js.map

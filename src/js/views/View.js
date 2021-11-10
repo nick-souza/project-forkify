@@ -81,7 +81,7 @@ export default class View {
 			//The method nodeValue returns null for all elementes that are not texts, and we can use it since we only want to change the text content
 			if (
 				!newEl.isEqualNode(curEl) &&
-				newEl.firstChild.nodeValue.trim() !== ""
+				newEl.firstChild?.nodeValue.trim() !== ""
 			) {
 				curEl.textContent = newEl.textContent;
 			}

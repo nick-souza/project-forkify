@@ -49,6 +49,15 @@ class RecipeView extends View {
 		});
 	}
 
+	//Method to listen to the bookmark btn events, also using the PubSub:
+	addHandlerAddBookmark(handler) {
+		this._parentElement.addEventListener("click", function (e) {
+			const btn = e.target.closest(".btn--bookmark");
+			if (!btn) return;
+			handler();
+		});
+	}
+
 	//Since the render method will be present in all the views, is better to add the renderRecipe in a separete private method:
 	_generateMarkup() {
 		return `
@@ -99,12 +108,13 @@ class RecipeView extends View {
           </div>
 
           <div class="recipe__user-generated">
-          
           </div>
 
-          <button class="btn--round">
+          <button class="btn--round btn--bookmark">
             <svg class="">
-                <use href="${icons}#icon-bookmark-fill"></use>
+                <use href="${icons}#icon-bookmark${
+			this._data.bookmarked ? "-fill" : ""
+		}"></use>
             </svg>
           </button>
       </div>

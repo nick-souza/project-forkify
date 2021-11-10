@@ -31,6 +31,24 @@ class RecipeView extends View {
 		);
 	}
 
+	//Method to listen to the btn servings changes, using the PubSub Design Patter:
+	addHandlerUpdateServings(handler) {
+		//Since there are two btns, we set the event listener to the parent element:
+		this._parentElement.addEventListener("click", function (e) {
+			//Finding which btn was clicked using the closest method:
+			const btn = e.target.closest(".btn--update-servings");
+
+			//Guard clause in case the user clicks anywhere but the btn:
+			if (!btn) return;
+
+			//With the data-update-to attribute in each btn, we know wheter to increase or decrease the servings, converting it to a number with the + sign
+			const updateTo = +btn.dataset.updateTo;
+
+			//Handle in case the number of servings from 0 to negative
+			if (updateTo > 0) handler(updateTo);
+		});
+	}
+
 	//Since the render method will be present in all the views, is better to add the renderRecipe in a separete private method:
 	_generateMarkup() {
 		return `
@@ -63,12 +81,16 @@ class RecipeView extends View {
           <span class="recipe__info-text">servings</span>
 
           <div class="recipe__info-buttons">
-              <button class="btn--tiny btn--increase-servings">
+              <button data-update-to="${
+								this._data.servings - 1
+							}" class="btn--tiny btn--update-servings">
               <svg>
                   <use href="${icons}#icon-minus-circle"></use>
               </svg>
               </button>
-              <button class="btn--tiny btn--increase-servings">
+              <button data-update-to="${
+								this._data.servings + 1
+							}" class="btn--tiny btn--update-servings">
               <svg>
                   <use href="${icons}#icon-plus-circle"></use>
               </svg>

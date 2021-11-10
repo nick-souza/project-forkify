@@ -47,13 +47,14 @@ async function controlRecipes() {
 //Function resposible for calling the model function to search the recipes, passing in the query. Since the model function returns a promise, we have to handle that as well:
 async function controlSearchResults() {
 	try {
-		//Rendering the spinner when the results are loading:
-		resultsView.renderSpinner();
-
 		//Getting the query for the api call from the view:
 		const query = searchView.getQuery();
+
 		//Guard clause in case there is no query:
 		if (!query) return;
+
+		//Rendering the spinner when the results are loading:
+		resultsView.renderSpinner();
 
 		//No need to store it in a variable, since the model already saves it to the state object. Also have to await because it is a async function:
 		await model.loadSearchResults(query);
@@ -77,6 +78,15 @@ function controlPagination(goToPage) {
 	paginationView.render(model.state.search);
 }
 
+//Function that will handle the changes for the servings:
+function controlServings(newServings) {
+	//Calling the model passing the amount of servings:
+	model.updateServings(newServings);
+
+	//Now just rendering the recipe again with the new servings:
+	recipeView.render(model.state.recipe);
+}
+
 function init() {
 	//Using the PubSub Design Pattern;
 	//Passing the subscriber (controlRecipes) to the publisher in the recipeView, so it can handle the event listeners:
@@ -85,8 +95,11 @@ function init() {
 	//Passing the subscriber to the publisher in the searchView, so it can handle the event listeners:
 	searchView.addHandlerSearch(controlSearchResults);
 
-	//Passing the subscriber to the publisher in the searchView, so it can handle the event listeners:
+	//Passing the subscriber to the publisher in the paginationView, so it can handle the event listeners:
 	paginationView.addHandlerClick(controlPagination);
+
+	//Passing the subscriber to the publisher in the recipeView, so it can handle the event listeners:
+	recipeView.addHandlerUpdateServings(controlServings);
 }
 
 init();

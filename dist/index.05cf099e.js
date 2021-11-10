@@ -503,12 +503,12 @@ async function controlRecipes() {
 //Function resposible for calling the model function to search the recipes, passing in the query. Since the model function returns a promise, we have to handle that as well:
 async function controlSearchResults() {
     try {
-        //Rendering the spinner when the results are loading:
-        _resultsViewJsDefault.default.renderSpinner();
         //Getting the query for the api call from the view:
         const query = _searchViewJsDefault.default.getQuery();
         //Guard clause in case there is no query:
         if (!query) return;
+        //Rendering the spinner when the results are loading:
+        _resultsViewJsDefault.default.renderSpinner();
         //No need to store it in a variable, since the model already saves it to the state object. Also have to await because it is a async function:
         await _modelJs.loadSearchResults(query);
         //Passing the state object with the stored results to the view so it can render it to the user:
@@ -527,18 +527,139 @@ function controlPagination(goToPage) {
     //Displaying the pagination btns, passing the state object that contains the information of the pages:
     _paginationViewJsDefault.default.render(_modelJs.state.search);
 }
+//Function that will handle the changes for the servings:
+function controlServings(newServings) {
+    //Calling the model passing the amount of servings:
+    _modelJs.updateServings(newServings);
+    //Now just rendering the recipe again with the new servings:
+    _recipeViewJsDefault.default.render(_modelJs.state.recipe);
+}
 function init() {
     //Using the PubSub Design Pattern;
     //Passing the subscriber (controlRecipes) to the publisher in the recipeView, so it can handle the event listeners:
     _recipeViewJsDefault.default.addHandlerRender(controlRecipes);
     //Passing the subscriber to the publisher in the searchView, so it can handle the event listeners:
     _searchViewJsDefault.default.addHandlerSearch(controlSearchResults);
-    //Passing the subscriber to the publisher in the searchView, so it can handle the event listeners:
+    //Passing the subscriber to the publisher in the paginationView, so it can handle the event listeners:
     _paginationViewJsDefault.default.addHandlerClick(controlPagination);
+    //Passing the subscriber to the publisher in the recipeView, so it can handle the event listeners:
+    _recipeViewJsDefault.default.addHandlerUpdateServings(controlServings);
 }
 init();
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","./model.js":"1pVJj","./views/recipeView.js":"82pEw","./views/searchView.js":"jcq1q","./views/resultsView.js":"5peDB","./views/paginationView.js":"2PAUD"}],"ciiiV":[function(require,module,exports) {
+},{"./model.js":"1pVJj","./views/recipeView.js":"82pEw","./views/searchView.js":"jcq1q","./views/resultsView.js":"5peDB","./views/paginationView.js":"2PAUD","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"1pVJj":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "state", ()=>state
+);
+//Exporting the load recipe function so we can use it in the controller:
+//Passing the id as a parameter because the controller is the one that will get it:
+parcelHelpers.export(exports, "loadRecipe", ()=>loadRecipe
+);
+//Exporting the function that will be called by the controller, responsible for making the api call for the searches:
+parcelHelpers.export(exports, "loadSearchResults", ()=>loadSearchResults
+);
+//Function responsible for the pagination, taking in the page number as a parameter:
+//Since at this point we already have the results loaded, we only need to slice the results array according to the page size:
+parcelHelpers.export(exports, "getSearchResultsPage", ()=>getSearchResultsPage
+);
+//Function that will update the ingredients quantity values of the recipe according to the servings that will be coming from the controller:
+parcelHelpers.export(exports, "updateServings", ()=>updateServings
+);
+//Importing the config file, so we can use the API url and other constant variables:
+var _config = require("./config");
+//Importing the helper file to get access to those functions:
+var _helpers = require("./helpers");
+const state = {
+    recipe: {
+    },
+    //Now the search object, already containing the query and the result:
+    search: {
+        query: "",
+        results: [],
+        page: 1,
+        resultsPerPage: _config.RES_PER_PAGE
+    }
+};
+async function loadRecipe(id) {
+    try {
+        //Calling the function responsible to make the API call, passing in the global variable API_URL that is in the config file and the id that will be in the search bar;
+        //And since the return of that function will be the resolve value of the promise, making the data here another promise, we have to also await;
+        const data = await _helpers.getJSON(`${_config.API_URL}${id}`);
+        //Creating a new variable to manipulate the recipe result from the call:
+        // let recipe = data.data.recipe;
+        //Since they have the same name we can use destructuring already:
+        const { recipe  } = data.data;
+        //Now just renaming the properties name and assigning it to the state variable:
+        state.recipe = {
+            id: recipe.id,
+            title: recipe.title,
+            publisher: recipe.publisher,
+            sourceUrl: recipe.source_url,
+            image: recipe.image_url,
+            servings: recipe.servings,
+            cookingTime: recipe.cooking_time,
+            ingredients: recipe.ingredients
+        };
+    } catch (error) {
+        //Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
+        throw error;
+    }
+}
+async function loadSearchResults(query) {
+    try {
+        state.search.query = query;
+        //Making a GET request to the api so we can get all the results based on the keyword the user searched for:
+        const data = await _helpers.getJSON(`${_config.API_URL}?search=${query}`);
+        //Creating a new array from the array recipe from the result of the api call, so we can rename the objects:
+        //And also storing the results in the state object:
+        state.search.results = data.data.recipes.map((recipe)=>{
+            return {
+                id: recipe.id,
+                title: recipe.title,
+                publisher: recipe.publisher,
+                image: recipe.image_url
+            };
+        });
+    } catch (error) {
+        //Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
+        throw error;
+    }
+}
+function getSearchResultsPage(page = state.search.page) {
+    //Storing the page number we are in, so we can display the privious and the next page:
+    state.search.page = page;
+    //To switch between pages we need to calculate these values dynamically:
+    //We take the page wanted, subtract 1 and multiply by the ammount of results we want in the page. So page 1 - 1 is 0, multiplied by 10 is 0, so the first argument for the slice for tha page 1 will be 0:
+    const start = (page - 1) * state.search.resultsPerPage;
+    //And here just multiply by 10. So page 1 * 10 will result in 10, since the slice method does not count the last element, we will have 10 results by page:
+    const end = page * state.search.resultsPerPage;
+    return state.search.results.slice(start, end);
+}
+function updateServings(newServings) {
+    //Updating the ingredients array to multiply the quantity by the new servings number:
+    //Using the formula: newQuantity = oldQuantity * newServings / oldServings;
+    state.recipe.ingredients.forEach((ing)=>{
+        ing.quantity = ing.quantity * newServings / state.recipe.servings;
+    });
+    //Now update the servings in the state object:
+    state.recipe.servings = newServings;
+}
+
+},{"./config":"6V52N","./helpers":"9RX9R","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"6V52N":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "API_URL", ()=>API_URL
+);
+parcelHelpers.export(exports, "TIMEOUT_SEC", ()=>TIMEOUT_SEC
+);
+parcelHelpers.export(exports, "RES_PER_PAGE", ()=>RES_PER_PAGE
+);
+const API_URL = "https://forkify-api.herokuapp.com/api/v2/recipes/";
+const TIMEOUT_SEC = 10;
+const RES_PER_PAGE = 10;
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"ciiiV":[function(require,module,exports) {
 exports.interopDefault = function(a) {
     return a && a.__esModule ? a : {
         default: a
@@ -568,7 +689,688 @@ exports.export = function(dest, destName, get) {
     });
 };
 
-},{}],"95FYz":[function(require,module,exports) {
+},{}],"9RX9R":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "getJSON", ()=>getJSON
+);
+//Helper file that will contain helper functions that we will reuse many times accross the project:
+//Importing the config file:
+var _config = require("./config");
+//Function responsible to returning a rejected promise after a number of seconds, we can use this in case the user has some trouble loading the recipes, so the fetch does not run forever;
+function timeout(s) {
+    return new Promise(function(_, reject) {
+        setTimeout(function() {
+            reject(new Error(`Request took too long! Timeout after ${s} second`));
+        }, s * 1000);
+    });
+}
+async function getJSON(url) {
+    try {
+        //Using promise.race here to check which promise will resolve faster, the loading fetch or the timeout that will reject after the seconds that were passed as arguments;
+        const res = await Promise.race([
+            fetch(url),
+            timeout(_config.TIMEOUT_SEC)
+        ]);
+        const data = await res.json();
+        if (!res.ok) throw new Error(`${data.message} (${res.status})`);
+        return data;
+    } catch (error) {
+        //Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
+        throw error;
+    }
+}
+
+},{"./config":"6V52N","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"82pEw":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//Importing the parent View class:
+var _view = require("./View");
+var _viewDefault = parcelHelpers.interopDefault(_view);
+//Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
+var _iconsSvg = require("url:../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+//Importing a external library, fractional, to show the recipes number like fractions, instead of like 0.5;
+var _fractional = require("fractional");
+//Extending the parent class View, to inherit all the methods:
+class RecipeView extends _viewDefault.default {
+    //Setting private variables (Using the _ convention):
+    //Setting the parent element in each view to be able to reuse the methods from the parent View class:
+    _parentElement = document.querySelector(".recipe");
+    //Private field for the default error message;
+    _errorMessage = "Recipe not found. Please try again.";
+    //Private field for the default general message;
+    _message = "";
+    //Method to take care of the listeners, using the PubSub Design Pattern, this method being the publisher, need access to the subscriber;
+    addHandlerRender(handler) {
+        //Listening for the recipe id and hash to change, so we can change the rendered recipe accordingly.
+        //Also listening to the load event, to change the recipe when the link is copied and paste in the search bar;
+        // window.addEventListener("hashchange", controlRecipes);
+        // window.addEventListener("load", controlRecipes);
+        //We can get rid of the duplicate code by:
+        [
+            "hashchange",
+            "load"
+        ].forEach((ev)=>window.addEventListener(ev, handler)
+        );
+    }
+    //Method to listen to the btn servings changes, using the PubSub Design Patter:
+    addHandlerUpdateServings(handler1) {
+        //Since there are two btns, we set the event listener to the parent element:
+        this._parentElement.addEventListener("click", function(e) {
+            //Finding which btn was clicked using the closest method:
+            const btn = e.target.closest(".btn--update-servings");
+            //Guard clause in case the user clicks anywhere but the btn:
+            if (!btn) return;
+            //With the data-update-to attribute in each btn, we know wheter to increase or decrease the servings, converting it to a number with the + sign
+            const updateTo = +btn.dataset.updateTo;
+            //Handle in case the number of servings from 0 to negative
+            if (updateTo > 0) handler1(updateTo);
+        });
+    }
+    //Since the render method will be present in all the views, is better to add the renderRecipe in a separete private method:
+    _generateMarkup() {
+        return `
+      <figure class="recipe__fig">
+          <img src="${this._data.image}" alt="${this._data.title}" class="recipe__img" />
+          <h1 class="recipe__title">
+          <span>${this._data.title}</span>
+          </h1>
+      </figure>
+
+      <div class="recipe__details">
+          <div class="recipe__info">
+          <svg class="recipe__info-icon">
+              <use href="${_iconsSvgDefault.default}#icon-clock"></use>
+          </svg>
+          <span class="recipe__info-data recipe__info-data--minutes">${this._data.cookingTime}</span>
+          <span class="recipe__info-text">minutes</span>
+          </div>
+          <div class="recipe__info">
+          <svg class="recipe__info-icon">
+              <use href="${_iconsSvgDefault.default}#icon-users"></use>
+          </svg>
+          <span class="recipe__info-data recipe__info-data--people">${this._data.servings}</span>
+          <span class="recipe__info-text">servings</span>
+
+          <div class="recipe__info-buttons">
+              <button data-update-to="${this._data.servings - 1}" class="btn--tiny btn--update-servings">
+              <svg>
+                  <use href="${_iconsSvgDefault.default}#icon-minus-circle"></use>
+              </svg>
+              </button>
+              <button data-update-to="${this._data.servings + 1}" class="btn--tiny btn--update-servings">
+              <svg>
+                  <use href="${_iconsSvgDefault.default}#icon-plus-circle"></use>
+              </svg>
+              </button>
+          </div>
+          </div>
+
+          <div class="recipe__user-generated">
+          
+          </div>
+
+          <button class="btn--round">
+            <svg class="">
+                <use href="${_iconsSvgDefault.default}#icon-bookmark-fill"></use>
+            </svg>
+          </button>
+      </div>
+
+      <div class="recipe__ingredients">
+          <h2 class="heading--2">Recipe ingredients</h2>
+          <ul class="recipe__ingredient-list">
+          ${this._data.ingredients.map(this._generateMarkupIngredient).join("")}
+          </ul>
+      </div>
+
+      <div class="recipe__directions">
+          <h2 class="heading--2">How to cook it</h2>
+          <p class="recipe__directions-text">
+          This recipe was carefully designed and tested by
+          <span class="recipe__publisher">${this._data.publisher}</span>. Please check out
+          directions at their website.
+          </p>
+          <a
+          class="btn--small recipe__btn"
+          href="${this._data.sourceUrl}"
+          target="_blank"
+          >
+          <span>Directions</span>
+          <svg class="search__icon">
+              <use href="${_iconsSvgDefault.default}#icon-arrow-right"></use>
+          </svg>
+          </a>
+      </div>
+    `;
+    }
+    //Method to generate and render the ingredients list, that will be called in by the #generateMarkup. Just so it is more organized;
+    _generateMarkupIngredient(ing) {
+        return `
+			<li class="recipe__ingredient">
+			<svg class="recipe__icon">
+					<use href="${_iconsSvgDefault.default}#icon-check"></use>
+			</svg>
+			<div class="recipe__quantity">${ing.quantity ? new _fractional.Fraction(ing.quantity).toString() : ""}</div>
+			<div class="recipe__description">
+					<span class="recipe__unit">${ing.unit}</span>
+					${ing.description}
+			</div>
+			</li>
+	`;
+    }
+}
+exports.default = new RecipeView();
+
+},{"./View":"9dvKv","url:../../img/icons.svg":"5jwFy","fractional":"7ggqM","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"9dvKv":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//Parent view class that contains the general methods so the other views can reuse it:
+//Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
+var _iconsSvg = require("url:../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class View {
+    _data;
+    render(data) {
+        //Handling in case the data does not exist, example the user searching for something that does not exist:
+        //So checking if the data exists OR if the data is an array AND if its empty:
+        if (!data || Array.isArray(data) && data.length === 0) return this.renderError();
+        this._data = data;
+        const markup = this._generateMarkup();
+        //Removing the default message:
+        this._clear();
+        //Inserting the markup to the html:
+        this._parentElement.insertAdjacentHTML("afterbegin", markup);
+    }
+    //Method responsible for rendering the error to the users:
+    //Using the default to get the commom error message from the view itself;
+    renderError(message = this._errorMessage) {
+        this._clear();
+        const markup = `
+			<div class="error">
+				<div>
+					<svg>
+					<use href="${_iconsSvgDefault.default}#icon-alert-triangle"></use>
+					</svg>
+				</div>
+				<p>${message}</p>
+			</div>
+		`;
+        this._parentElement.insertAdjacentHTML("afterbegin", markup);
+    }
+    //Method to render general messages to the user interface:
+    renderMessage(message1 = this._message) {
+        const markup = `
+			<div class="message">
+				<div>
+					<svg>
+					<use href="${_iconsSvgDefault.default}#icon-smile"></use>
+					</svg>
+				</div>
+				<p>${message1}</p>
+			</div>
+		`;
+        this._clear();
+        this._parentElement.insertAdjacentHTML("afterbegin", markup);
+    }
+    //Simple method to clear the parent html before rendering anythin into it:
+    _clear() {
+        this._parentElement.innerHTML = "";
+    }
+    //Render the spinner when the user is loading the recipe:
+    renderSpinner() {
+        //It works because inside the css for the spinner class theres is a spinning animation already;
+        const markup = `
+			<div class="spinner">  
+				<svg>
+					<use href="${_iconsSvgDefault.default}#icon-loader"></use>
+				</svg>
+			</div>
+		`;
+        this._clear();
+        this._parentElement.insertAdjacentHTML("afterbegin", markup);
+    }
+}
+exports.default = View;
+
+},{"url:../../img/icons.svg":"5jwFy","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"5jwFy":[function(require,module,exports) {
+module.exports = require('./helpers/bundle-url').getBundleURL('71ti3') + "icons.e7078503.svg" + "?" + Date.now();
+
+},{"./helpers/bundle-url":"chiK4"}],"chiK4":[function(require,module,exports) {
+"use strict";
+var bundleURL = {
+};
+function getBundleURLCached(id) {
+    var value = bundleURL[id];
+    if (!value) {
+        value = getBundleURL();
+        bundleURL[id] = value;
+    }
+    return value;
+}
+function getBundleURL() {
+    try {
+        throw new Error();
+    } catch (err) {
+        var matches = ('' + err.stack).match(/(https?|file|ftp):\/\/[^)\n]+/g);
+        if (matches) // The first two stack frames will be this function and getBundleURLCached.
+        // Use the 3rd one, which will be a runtime in the original bundle.
+        return getBaseURL(matches[2]);
+    }
+    return '/';
+}
+function getBaseURL(url) {
+    return ('' + url).replace(/^((?:https?|file|ftp):\/\/.+)\/[^/]+$/, '$1') + '/';
+} // TODO: Replace uses with `new URL(url).origin` when ie11 is no longer supported.
+function getOrigin(url) {
+    var matches = ('' + url).match(/(https?|file|ftp):\/\/[^/]+/);
+    if (!matches) throw new Error('Origin not found');
+    return matches[0];
+}
+exports.getBundleURL = getBundleURLCached;
+exports.getBaseURL = getBaseURL;
+exports.getOrigin = getOrigin;
+
+},{}],"7ggqM":[function(require,module,exports) {
+/*
+fraction.js
+A Javascript fraction library.
+
+Copyright (c) 2009  Erik Garrison <erik@hypervolu.me>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+*/ /* Fractions */ /* 
+ *
+ * Fraction objects are comprised of a numerator and a denomenator.  These
+ * values can be accessed at fraction.numerator and fraction.denomenator.
+ *
+ * Fractions are always returned and stored in lowest-form normalized format.
+ * This is accomplished via Fraction.normalize.
+ *
+ * The following mathematical operations on fractions are supported:
+ *
+ * Fraction.equals
+ * Fraction.add
+ * Fraction.subtract
+ * Fraction.multiply
+ * Fraction.divide
+ *
+ * These operations accept both numbers and fraction objects.  (Best results
+ * are guaranteed when the input is a fraction object.)  They all return a new
+ * Fraction object.
+ *
+ * Usage:
+ *
+ * TODO
+ *
+ */ /*
+ * The Fraction constructor takes one of:
+ *   an explicit numerator (integer) and denominator (integer),
+ *   a string representation of the fraction (string),
+ *   or a floating-point number (float)
+ *
+ * These initialization methods are provided for convenience.  Because of
+ * rounding issues the best results will be given when the fraction is
+ * constructed from an explicit integer numerator and denomenator, and not a
+ * decimal number.
+ *
+ *
+ * e.g. new Fraction(1, 2) --> 1/2
+ *      new Fraction('1/2') --> 1/2
+ *      new Fraction('2 3/4') --> 11/4  (prints as 2 3/4)
+ *
+ */ Fraction = function(numerator, denominator) {
+    /* double argument invocation */ if (typeof numerator !== 'undefined' && denominator) {
+        if (typeof numerator === 'number' && typeof denominator === 'number') {
+            this.numerator = numerator;
+            this.denominator = denominator;
+        } else if (typeof numerator === 'string' && typeof denominator === 'string') {
+            // what are they?
+            // hmm....
+            // assume they are ints?
+            this.numerator = parseInt(numerator);
+            this.denominator = parseInt(denominator);
+        }
+    /* single-argument invocation */ } else if (typeof denominator === 'undefined') {
+        num = numerator; // swap variable names for legibility
+        if (typeof num === 'number') {
+            this.numerator = num;
+            this.denominator = 1;
+        } else if (typeof num === 'string') {
+            var a, b; // hold the first and second part of the fraction, e.g. a = '1' and b = '2/3' in 1 2/3
+            // or a = '2/3' and b = undefined if we are just passed a single-part number
+            var arr = num.split(' ');
+            if (arr[0]) a = arr[0];
+            if (arr[1]) b = arr[1];
+            /* compound fraction e.g. 'A B/C' */ //  if a is an integer ...
+            if (a % 1 === 0 && b && b.match('/')) return new Fraction(a).add(new Fraction(b));
+            else if (a && !b) {
+                /* simple fraction e.g. 'A/B' */ if (typeof a === 'string' && a.match('/')) {
+                    // it's not a whole number... it's actually a fraction without a whole part written
+                    var f = a.split('/');
+                    this.numerator = f[0];
+                    this.denominator = f[1];
+                /* string floating point */ } else if (typeof a === 'string' && a.match('\.')) return new Fraction(parseFloat(a));
+                else {
+                    this.numerator = parseInt(a);
+                    this.denominator = 1;
+                }
+            } else return undefined; // could not parse
+        }
+    }
+    this.normalize();
+};
+Fraction.prototype.clone = function() {
+    return new Fraction(this.numerator, this.denominator);
+};
+/* pretty-printer, converts fractions into whole numbers and fractions */ Fraction.prototype.toString = function() {
+    if (this.denominator === 'NaN') return 'NaN';
+    var wholepart = this.numerator / this.denominator > 0 ? Math.floor(this.numerator / this.denominator) : Math.ceil(this.numerator / this.denominator);
+    var numerator = this.numerator % this.denominator;
+    var denominator = this.denominator;
+    var result = [];
+    if (wholepart != 0) result.push(wholepart);
+    if (numerator != 0) result.push((wholepart === 0 ? numerator : Math.abs(numerator)) + '/' + denominator);
+    return result.length > 0 ? result.join(' ') : 0;
+};
+/* destructively rescale the fraction by some integral factor */ Fraction.prototype.rescale = function(factor) {
+    this.numerator *= factor;
+    this.denominator *= factor;
+    return this;
+};
+Fraction.prototype.add = function(b) {
+    var a = this.clone();
+    if (b instanceof Fraction) b = b.clone();
+    else b = new Fraction(b);
+    td = a.denominator;
+    a.rescale(b.denominator);
+    b.rescale(td);
+    a.numerator += b.numerator;
+    return a.normalize();
+};
+Fraction.prototype.subtract = function(b) {
+    var a = this.clone();
+    if (b instanceof Fraction) b = b.clone(); // we scale our argument destructively, so clone
+    else b = new Fraction(b);
+    td = a.denominator;
+    a.rescale(b.denominator);
+    b.rescale(td);
+    a.numerator -= b.numerator;
+    return a.normalize();
+};
+Fraction.prototype.multiply = function(b) {
+    var a = this.clone();
+    if (b instanceof Fraction) {
+        a.numerator *= b.numerator;
+        a.denominator *= b.denominator;
+    } else if (typeof b === 'number') a.numerator *= b;
+    else return a.multiply(new Fraction(b));
+    return a.normalize();
+};
+Fraction.prototype.divide = function(b) {
+    var a = this.clone();
+    if (b instanceof Fraction) {
+        a.numerator *= b.denominator;
+        a.denominator *= b.numerator;
+    } else if (typeof b === 'number') a.denominator *= b;
+    else return a.divide(new Fraction(b));
+    return a.normalize();
+};
+Fraction.prototype.equals = function(b) {
+    if (!(b instanceof Fraction)) b = new Fraction(b);
+    // fractions that are equal should have equal normalized forms
+    var a = this.clone().normalize();
+    var b = b.clone().normalize();
+    return a.numerator === b.numerator && a.denominator === b.denominator;
+};
+/* Utility functions */ /* Destructively normalize the fraction to its smallest representation. 
+ * e.g. 4/16 -> 1/4, 14/28 -> 1/2, etc.
+ * This is called after all math ops.
+ */ Fraction.prototype.normalize = (function() {
+    var isFloat = function(n) {
+        return typeof n === 'number' && (n > 0 && n % 1 > 0 && n % 1 < 1 || n < 0 && n % -1 < 0 && n % -1 > -1);
+    };
+    var roundToPlaces = function(n, places) {
+        if (!places) return Math.round(n);
+        else {
+            var scalar = Math.pow(10, places);
+            return Math.round(n * scalar) / scalar;
+        }
+    };
+    return function() {
+        // XXX hackish.  Is there a better way to address this issue?
+        //
+        /* first check if we have decimals, and if we do eliminate them
+         * multiply by the 10 ^ number of decimal places in the number
+         * round the number to nine decimal places
+         * to avoid js floating point funnies
+         */ if (isFloat(this.denominator)) {
+            var rounded = roundToPlaces(this.denominator, 9);
+            var scaleup = Math.pow(10, rounded.toString().split('.')[1].length);
+            this.denominator = Math.round(this.denominator * scaleup); // this !!! should be a whole number
+            //this.numerator *= scaleup;
+            this.numerator *= scaleup;
+        }
+        if (isFloat(this.numerator)) {
+            var rounded = roundToPlaces(this.numerator, 9);
+            var scaleup = Math.pow(10, rounded.toString().split('.')[1].length);
+            this.numerator = Math.round(this.numerator * scaleup); // this !!! should be a whole number
+            //this.numerator *= scaleup;
+            this.denominator *= scaleup;
+        }
+        var gcf = Fraction.gcf(this.numerator, this.denominator);
+        this.numerator /= gcf;
+        this.denominator /= gcf;
+        if (this.numerator < 0 && this.denominator < 0 || this.numerator > 0 && this.denominator < 0) {
+            this.numerator *= -1;
+            this.denominator *= -1;
+        }
+        return this;
+    };
+})();
+/* Takes two numbers and returns their greatest common factor.
+ */ Fraction.gcf = function(a, b) {
+    var common_factors = [];
+    var fa = Fraction.primeFactors(a);
+    var fb = Fraction.primeFactors(b);
+    // for each factor in fa
+    // if it's also in fb
+    // put it into the common factors
+    fa.forEach(function(factor) {
+        var i = fb.indexOf(factor);
+        if (i >= 0) {
+            common_factors.push(factor);
+            fb.splice(i, 1); // remove from fb
+        }
+    });
+    if (common_factors.length === 0) return 1;
+    var gcf = function() {
+        var r = common_factors[0];
+        var i;
+        for(i = 1; i < common_factors.length; i++)r = r * common_factors[i];
+        return r;
+    }();
+    return gcf;
+};
+// Adapted from: 
+// http://www.btinternet.com/~se16/js/factor.htm
+Fraction.primeFactors = function(n) {
+    var num = Math.abs(n);
+    var factors = [];
+    var _factor = 2; // first potential prime factor
+    while(_factor * _factor <= num)if (num % _factor === 0) {
+        factors.push(_factor); // so keep it
+        num = num / _factor; // and divide our search point by it
+    } else _factor++; // and increment
+    if (num != 1) factors.push(num); //    so it too should be recorded
+    return factors; // Return the prime factors
+};
+module.exports.Fraction = Fraction;
+
+},{}],"jcq1q":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//Class responsible for handling the search bar and btn for the user interface, passing the values to the controller to make the query:
+class SearchView {
+    //Selecting the parent element that contains the search bar and the button:
+    _parentEl = document.querySelector(".search");
+    //Method for returning whatever the user has typed in the search bar, selecting the form field and getting the value:
+    getQuery() {
+        const query = this._parentEl.querySelector(".search__field").value;
+        this._clearInout();
+        return query;
+    }
+    //Publisher necessary to listing to the btn events, needing the subscriber in the controller:
+    addHandlerSearch(handler) {
+        this._parentEl.addEventListener("submit", function(e) {
+            //Preventing the form from realoading the page:
+            e.preventDefault();
+            //Now calling the handler function coming from the controller:
+            handler();
+        });
+    }
+    //Clearing the input field aftier hiting submit:
+    _clearInout() {
+        return this._parentEl.querySelector(".search__field").value = "";
+    }
+}
+exports.default = new SearchView();
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"5peDB":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//Class responsible for rendering the search results to the user:
+//Importing the parent View class:
+var _view = require("./View");
+var _viewDefault = parcelHelpers.interopDefault(_view);
+//Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
+var _iconsSvg = require("url:../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class ResultsView extends _viewDefault.default {
+    _parentElement = document.querySelector(".results");
+    //Private field for the default error message;
+    _errorMessage = "No recipes found for your query. Try again.";
+    //Private field for the default general message;
+    _message = "";
+    //Method to generate html code so the parent method View.render can load it to the user screen:
+    _generateMarkup() {
+        //Since the result comming from the controller will be an array, we need to loop over it and then join it all together:
+        return this._data.map(this._generateMarkupPreview).join("");
+    }
+    //Method responsible for generating the html for each result, to be passed in the map method for the _data:
+    _generateMarkupPreview(result) {
+        return `
+      <li class="preview">
+        <a class="preview__link" href="#${result.id}">
+        <figure class="preview__fig">
+            <img src="${result.image}" alt="${result.title}" />
+        </figure>
+        <div class="preview__data">
+          <h4 class="preview__title">${result.title}</h4>
+          <p class="preview__publisher">${result.publisher}</p>
+        </div>
+        </a>
+      </li>
+    `;
+    }
+}
+exports.default = new ResultsView();
+
+},{"./View":"9dvKv","url:../../img/icons.svg":"5jwFy","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"2PAUD":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//Class responsible for rendering the page btn in the user seraches:
+//Importing the parent View class:
+var _view = require("./View");
+var _viewDefault = parcelHelpers.interopDefault(_view);
+//Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
+var _iconsSvg = require("url:../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class PaginationView extends _viewDefault.default {
+    _parentElement = document.querySelector(".pagination");
+    //Publisher necessary to listing to the page btn events, needing the subscriber in the controller:
+    addHandlerClick(handler) {
+        //Since there may be two btns, we set the event listener to the parent element:
+        this._parentElement.addEventListener("click", function(e) {
+            //Finding which btn was clicked using the closest method:
+            const btn = e.target.closest(".btn--inline");
+            //Guard clause in case the user clicks anywhere but the btn:
+            if (!btn) return;
+            //With the data-goto attribute in each btn, we know where the pagination should go, converting it to a number with the + sign
+            const goToPage = +btn.dataset.goto;
+            //Passing the page num to the handler function to be used in the controller:
+            handler(goToPage);
+        });
+    }
+    //Method responsible for generating the html for each result, to be passed in the map method for the _data:
+    _generateMarkup() {
+        //Variable with the current page:
+        const curPage = this._data.page;
+        //Finding out how many pages there are for the current result:
+        //Dividing the total number of results by the number of results we want on a page (rounded by the next integer):
+        const numPages = Math.ceil(this._data.results.length / this._data.resultsPerPage);
+        //Page 1 and there are other pages:
+        if (curPage === 1 && numPages > 1) //Returning the next page btn
+        return `
+        <button data-goto="${curPage + 1}" class="btn--inline pagination__btn--next">
+          <span>Page ${curPage + 1}</span>
+          <svg class="search__icon">
+            <use href="${_iconsSvgDefault.default}#icon-arrow-right"></use>
+          </svg>
+        </button>
+      `;
+        //Last Page
+        if (curPage === numPages && numPages > 1) //Returning the previous page btn
+        return `
+        <button data-goto="${curPage - 1}" class="btn--inline pagination__btn--prev">
+          <svg class="search__icon">
+            <use href="${_iconsSvgDefault.default}#icon-arrow-left"></use>
+          </svg>
+          <span>Page ${curPage - 1}</span>
+        </button>
+      `;
+        //Other Page
+        if (curPage < numPages) //Returning both btns
+        return `
+        <button data-goto="${curPage - 1}" class="btn--inline pagination__btn--prev">
+          <svg class="search__icon">
+            <use href="${_iconsSvgDefault.default}#icon-arrow-left"></use>
+          </svg>
+          <span>Page ${curPage - 1}</span>
+        </button>
+
+        <button data-goto="${curPage + 1}" class="btn--inline pagination__btn--next">
+          <span>Page ${curPage + 1}</span>
+          <svg class="search__icon">
+            <use href="${_iconsSvgDefault.default}#icon-arrow-right"></use>
+          </svg>
+        </button>
+      `;
+        //Page 1 and there are NO other pages. Not rendering any btn because there is no other pages:
+        return "";
+    }
+}
+exports.default = new PaginationView();
+
+},{"./View":"9dvKv","url:../../img/icons.svg":"5jwFy","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"95FYz":[function(require,module,exports) {
 require('../modules/es.symbol');
 require('../modules/es.symbol.description');
 require('../modules/es.symbol.async-iterator');
@@ -13611,773 +14413,6 @@ try {
     else Function("r", "regeneratorRuntime = r")(runtime);
 }
 
-},{}],"1pVJj":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "state", ()=>state
-);
-//Exporting the load recipe function so we can use it in the controller:
-//Passing the id as a parameter because the controller is the one that will get it:
-parcelHelpers.export(exports, "loadRecipe", ()=>loadRecipe
-);
-//Exporting the function that will be called by the controller, responsible for making the api call for the searches:
-parcelHelpers.export(exports, "loadSearchResults", ()=>loadSearchResults
-);
-//Function responsible for the pagination, taking in the page number as a parameter:
-//Since at this point we already have the results loaded, we only need to slice the results array according to the page size:
-parcelHelpers.export(exports, "getSearchResultsPage", ()=>getSearchResultsPage
-);
-//Importing the config file, so we can use the API url and other constant variables:
-var _config = require("./config");
-//Importing the helper file to get access to those functions:
-var _helpers = require("./helpers");
-const state = {
-    recipe: {
-    },
-    //Now the search object, already containing the query and the result:
-    search: {
-        query: "",
-        results: [],
-        page: 1,
-        resultsPerPage: _config.RES_PER_PAGE
-    }
-};
-async function loadRecipe(id) {
-    try {
-        //Calling the function responsible to make the API call, passing in the global variable API_URL that is in the config file and the id that will be in the search bar;
-        //And since the return of that function will be the resolve value of the promise, making the data here another promise, we have to also await;
-        const data = await _helpers.getJSON(`${_config.API_URL}${id}`);
-        //Creating a new variable to manipulate the recipe result from the call:
-        // let recipe = data.data.recipe;
-        //Since they have the same name we can use destructuring already:
-        const { recipe  } = data.data;
-        //Now just renaming the properties name and assigning it to the state variable:
-        state.recipe = {
-            id: recipe.id,
-            title: recipe.title,
-            publisher: recipe.publisher,
-            sourceUrl: recipe.source_url,
-            image: recipe.image_url,
-            servings: recipe.servings,
-            cookingTime: recipe.cooking_time,
-            ingredients: recipe.ingredients
-        };
-    } catch (error) {
-        //Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
-        throw error;
-    }
-}
-async function loadSearchResults(query) {
-    try {
-        state.search.query = query;
-        //Making a GET request to the api so we can get all the results based on the keyword the user searched for:
-        const data = await _helpers.getJSON(`${_config.API_URL}?search=${query}`);
-        //Creating a new array from the array recipe from the result of the api call, so we can rename the objects:
-        //And also storing the results in the state object:
-        state.search.results = data.data.recipes.map((recipe)=>{
-            return {
-                id: recipe.id,
-                title: recipe.title,
-                publisher: recipe.publisher,
-                image: recipe.image_url
-            };
-        });
-    } catch (error) {
-        //Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
-        throw error;
-    }
-}
-function getSearchResultsPage(page = state.search.page) {
-    //Storing the page number we are in, so we can display the privious and the next page:
-    state.search.page = page;
-    //To switch between pages we need to calculate these values dynamically:
-    //We take the page wanted, subtract 1 and multiply by the ammount of results we want in the page. So page 1 - 1 is 0, multiplied by 10 is 0, so the first argument for the slice for tha page 1 will be 0:
-    const start = (page - 1) * state.search.resultsPerPage;
-    //And here just multiply by 10. So page 1 * 10 will result in 10, since the slice method does not count the last element, we will have 10 results by page:
-    const end = page * state.search.resultsPerPage;
-    return state.search.results.slice(start, end);
-}
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","./config":"6V52N","./helpers":"9RX9R"}],"6V52N":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "API_URL", ()=>API_URL
-);
-parcelHelpers.export(exports, "TIMEOUT_SEC", ()=>TIMEOUT_SEC
-);
-parcelHelpers.export(exports, "RES_PER_PAGE", ()=>RES_PER_PAGE
-);
-const API_URL = "https://forkify-api.herokuapp.com/api/v2/recipes/";
-const TIMEOUT_SEC = 10;
-const RES_PER_PAGE = 10;
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"9RX9R":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "getJSON", ()=>getJSON
-);
-//Helper file that will contain helper functions that we will reuse many times accross the project:
-//Importing the config file:
-var _config = require("./config");
-//Function responsible to returning a rejected promise after a number of seconds, we can use this in case the user has some trouble loading the recipes, so the fetch does not run forever;
-function timeout(s) {
-    return new Promise(function(_, reject) {
-        setTimeout(function() {
-            reject(new Error(`Request took too long! Timeout after ${s} second`));
-        }, s * 1000);
-    });
-}
-async function getJSON(url) {
-    try {
-        //Using promise.race here to check which promise will resolve faster, the loading fetch or the timeout that will reject after the seconds that were passed as arguments;
-        const res = await Promise.race([
-            fetch(url),
-            timeout(_config.TIMEOUT_SEC)
-        ]);
-        const data = await res.json();
-        if (!res.ok) throw new Error(`${data.message} (${res.status})`);
-        return data;
-    } catch (error) {
-        //Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
-        throw error;
-    }
-}
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","./config":"6V52N"}],"82pEw":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-//Importing the parent View class:
-var _view = require("./View");
-var _viewDefault = parcelHelpers.interopDefault(_view);
-//Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
-var _iconsSvg = require("url:../../img/icons.svg");
-var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
-//Importing a external library, fractional, to show the recipes number like fractions, instead of like 0.5;
-var _fractional = require("fractional");
-//Extending the parent class View, to inherit all the methods:
-class RecipeView extends _viewDefault.default {
-    //Setting private variables (Using the _ convention):
-    //Setting the parent element in each view to be able to reuse the methods from the parent View class:
-    _parentElement = document.querySelector(".recipe");
-    //Private field for the default error message;
-    _errorMessage = "Recipe not found. Please try again.";
-    //Private field for the default general message;
-    _message = "";
-    //Method to take care of the listeners, using the PubSub Design Pattern, this method being the publisher, need access to the subscriber;
-    addHandlerRender(handler) {
-        //Listening for the recipe id and hash to change, so we can change the rendered recipe accordingly.
-        //Also listening to the load event, to change the recipe when the link is copied and paste in the search bar;
-        // window.addEventListener("hashchange", controlRecipes);
-        // window.addEventListener("load", controlRecipes);
-        //We can get rid of the duplicate code by:
-        [
-            "hashchange",
-            "load"
-        ].forEach((ev)=>window.addEventListener(ev, handler)
-        );
-    }
-    //Since the render method will be present in all the views, is better to add the renderRecipe in a separete private method:
-    _generateMarkup() {
-        return `
-      <figure class="recipe__fig">
-          <img src="${this._data.image}" alt="${this._data.title}" class="recipe__img" />
-          <h1 class="recipe__title">
-          <span>${this._data.title}</span>
-          </h1>
-      </figure>
-
-      <div class="recipe__details">
-          <div class="recipe__info">
-          <svg class="recipe__info-icon">
-              <use href="${_iconsSvgDefault.default}#icon-clock"></use>
-          </svg>
-          <span class="recipe__info-data recipe__info-data--minutes">${this._data.cookingTime}</span>
-          <span class="recipe__info-text">minutes</span>
-          </div>
-          <div class="recipe__info">
-          <svg class="recipe__info-icon">
-              <use href="${_iconsSvgDefault.default}#icon-users"></use>
-          </svg>
-          <span class="recipe__info-data recipe__info-data--people">${this._data.servings}</span>
-          <span class="recipe__info-text">servings</span>
-
-          <div class="recipe__info-buttons">
-              <button class="btn--tiny btn--increase-servings">
-              <svg>
-                  <use href="${_iconsSvgDefault.default}#icon-minus-circle"></use>
-              </svg>
-              </button>
-              <button class="btn--tiny btn--increase-servings">
-              <svg>
-                  <use href="${_iconsSvgDefault.default}#icon-plus-circle"></use>
-              </svg>
-              </button>
-          </div>
-          </div>
-
-          <div class="recipe__user-generated">
-          
-          </div>
-
-          <button class="btn--round">
-            <svg class="">
-                <use href="${_iconsSvgDefault.default}#icon-bookmark-fill"></use>
-            </svg>
-          </button>
-      </div>
-
-      <div class="recipe__ingredients">
-          <h2 class="heading--2">Recipe ingredients</h2>
-          <ul class="recipe__ingredient-list">
-          ${this._data.ingredients.map(this._generateMarkupIngredient).join("")}
-          </ul>
-      </div>
-
-      <div class="recipe__directions">
-          <h2 class="heading--2">How to cook it</h2>
-          <p class="recipe__directions-text">
-          This recipe was carefully designed and tested by
-          <span class="recipe__publisher">${this._data.publisher}</span>. Please check out
-          directions at their website.
-          </p>
-          <a
-          class="btn--small recipe__btn"
-          href="${this._data.sourceUrl}"
-          target="_blank"
-          >
-          <span>Directions</span>
-          <svg class="search__icon">
-              <use href="${_iconsSvgDefault.default}#icon-arrow-right"></use>
-          </svg>
-          </a>
-      </div>
-    `;
-    }
-    //Method to generate and render the ingredients list, that will be called in by the #generateMarkup. Just so it is more organized;
-    _generateMarkupIngredient(ing) {
-        return `
-			<li class="recipe__ingredient">
-			<svg class="recipe__icon">
-					<use href="${_iconsSvgDefault.default}#icon-check"></use>
-			</svg>
-			<div class="recipe__quantity">${ing.quantity ? new _fractional.Fraction(ing.quantity).toString() : ""}</div>
-			<div class="recipe__description">
-					<span class="recipe__unit">${ing.unit}</span>
-					${ing.description}
-			</div>
-			</li>
-	`;
-    }
-}
-exports.default = new RecipeView();
-
-},{"url:../../img/icons.svg":"5jwFy","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","fractional":"7ggqM","./View":"9dvKv"}],"5jwFy":[function(require,module,exports) {
-module.exports = require('./helpers/bundle-url').getBundleURL('71ti3') + "icons.e7078503.svg" + "?" + Date.now();
-
-},{"./helpers/bundle-url":"chiK4"}],"chiK4":[function(require,module,exports) {
-"use strict";
-var bundleURL = {
-};
-function getBundleURLCached(id) {
-    var value = bundleURL[id];
-    if (!value) {
-        value = getBundleURL();
-        bundleURL[id] = value;
-    }
-    return value;
-}
-function getBundleURL() {
-    try {
-        throw new Error();
-    } catch (err) {
-        var matches = ('' + err.stack).match(/(https?|file|ftp):\/\/[^)\n]+/g);
-        if (matches) // The first two stack frames will be this function and getBundleURLCached.
-        // Use the 3rd one, which will be a runtime in the original bundle.
-        return getBaseURL(matches[2]);
-    }
-    return '/';
-}
-function getBaseURL(url) {
-    return ('' + url).replace(/^((?:https?|file|ftp):\/\/.+)\/[^/]+$/, '$1') + '/';
-} // TODO: Replace uses with `new URL(url).origin` when ie11 is no longer supported.
-function getOrigin(url) {
-    var matches = ('' + url).match(/(https?|file|ftp):\/\/[^/]+/);
-    if (!matches) throw new Error('Origin not found');
-    return matches[0];
-}
-exports.getBundleURL = getBundleURLCached;
-exports.getBaseURL = getBaseURL;
-exports.getOrigin = getOrigin;
-
-},{}],"7ggqM":[function(require,module,exports) {
-/*
-fraction.js
-A Javascript fraction library.
-
-Copyright (c) 2009  Erik Garrison <erik@hypervolu.me>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-*/ /* Fractions */ /* 
- *
- * Fraction objects are comprised of a numerator and a denomenator.  These
- * values can be accessed at fraction.numerator and fraction.denomenator.
- *
- * Fractions are always returned and stored in lowest-form normalized format.
- * This is accomplished via Fraction.normalize.
- *
- * The following mathematical operations on fractions are supported:
- *
- * Fraction.equals
- * Fraction.add
- * Fraction.subtract
- * Fraction.multiply
- * Fraction.divide
- *
- * These operations accept both numbers and fraction objects.  (Best results
- * are guaranteed when the input is a fraction object.)  They all return a new
- * Fraction object.
- *
- * Usage:
- *
- * TODO
- *
- */ /*
- * The Fraction constructor takes one of:
- *   an explicit numerator (integer) and denominator (integer),
- *   a string representation of the fraction (string),
- *   or a floating-point number (float)
- *
- * These initialization methods are provided for convenience.  Because of
- * rounding issues the best results will be given when the fraction is
- * constructed from an explicit integer numerator and denomenator, and not a
- * decimal number.
- *
- *
- * e.g. new Fraction(1, 2) --> 1/2
- *      new Fraction('1/2') --> 1/2
- *      new Fraction('2 3/4') --> 11/4  (prints as 2 3/4)
- *
- */ Fraction = function(numerator, denominator) {
-    /* double argument invocation */ if (typeof numerator !== 'undefined' && denominator) {
-        if (typeof numerator === 'number' && typeof denominator === 'number') {
-            this.numerator = numerator;
-            this.denominator = denominator;
-        } else if (typeof numerator === 'string' && typeof denominator === 'string') {
-            // what are they?
-            // hmm....
-            // assume they are ints?
-            this.numerator = parseInt(numerator);
-            this.denominator = parseInt(denominator);
-        }
-    /* single-argument invocation */ } else if (typeof denominator === 'undefined') {
-        num = numerator; // swap variable names for legibility
-        if (typeof num === 'number') {
-            this.numerator = num;
-            this.denominator = 1;
-        } else if (typeof num === 'string') {
-            var a, b; // hold the first and second part of the fraction, e.g. a = '1' and b = '2/3' in 1 2/3
-            // or a = '2/3' and b = undefined if we are just passed a single-part number
-            var arr = num.split(' ');
-            if (arr[0]) a = arr[0];
-            if (arr[1]) b = arr[1];
-            /* compound fraction e.g. 'A B/C' */ //  if a is an integer ...
-            if (a % 1 === 0 && b && b.match('/')) return new Fraction(a).add(new Fraction(b));
-            else if (a && !b) {
-                /* simple fraction e.g. 'A/B' */ if (typeof a === 'string' && a.match('/')) {
-                    // it's not a whole number... it's actually a fraction without a whole part written
-                    var f = a.split('/');
-                    this.numerator = f[0];
-                    this.denominator = f[1];
-                /* string floating point */ } else if (typeof a === 'string' && a.match('\.')) return new Fraction(parseFloat(a));
-                else {
-                    this.numerator = parseInt(a);
-                    this.denominator = 1;
-                }
-            } else return undefined; // could not parse
-        }
-    }
-    this.normalize();
-};
-Fraction.prototype.clone = function() {
-    return new Fraction(this.numerator, this.denominator);
-};
-/* pretty-printer, converts fractions into whole numbers and fractions */ Fraction.prototype.toString = function() {
-    if (this.denominator === 'NaN') return 'NaN';
-    var wholepart = this.numerator / this.denominator > 0 ? Math.floor(this.numerator / this.denominator) : Math.ceil(this.numerator / this.denominator);
-    var numerator = this.numerator % this.denominator;
-    var denominator = this.denominator;
-    var result = [];
-    if (wholepart != 0) result.push(wholepart);
-    if (numerator != 0) result.push((wholepart === 0 ? numerator : Math.abs(numerator)) + '/' + denominator);
-    return result.length > 0 ? result.join(' ') : 0;
-};
-/* destructively rescale the fraction by some integral factor */ Fraction.prototype.rescale = function(factor) {
-    this.numerator *= factor;
-    this.denominator *= factor;
-    return this;
-};
-Fraction.prototype.add = function(b) {
-    var a = this.clone();
-    if (b instanceof Fraction) b = b.clone();
-    else b = new Fraction(b);
-    td = a.denominator;
-    a.rescale(b.denominator);
-    b.rescale(td);
-    a.numerator += b.numerator;
-    return a.normalize();
-};
-Fraction.prototype.subtract = function(b) {
-    var a = this.clone();
-    if (b instanceof Fraction) b = b.clone(); // we scale our argument destructively, so clone
-    else b = new Fraction(b);
-    td = a.denominator;
-    a.rescale(b.denominator);
-    b.rescale(td);
-    a.numerator -= b.numerator;
-    return a.normalize();
-};
-Fraction.prototype.multiply = function(b) {
-    var a = this.clone();
-    if (b instanceof Fraction) {
-        a.numerator *= b.numerator;
-        a.denominator *= b.denominator;
-    } else if (typeof b === 'number') a.numerator *= b;
-    else return a.multiply(new Fraction(b));
-    return a.normalize();
-};
-Fraction.prototype.divide = function(b) {
-    var a = this.clone();
-    if (b instanceof Fraction) {
-        a.numerator *= b.denominator;
-        a.denominator *= b.numerator;
-    } else if (typeof b === 'number') a.denominator *= b;
-    else return a.divide(new Fraction(b));
-    return a.normalize();
-};
-Fraction.prototype.equals = function(b) {
-    if (!(b instanceof Fraction)) b = new Fraction(b);
-    // fractions that are equal should have equal normalized forms
-    var a = this.clone().normalize();
-    var b = b.clone().normalize();
-    return a.numerator === b.numerator && a.denominator === b.denominator;
-};
-/* Utility functions */ /* Destructively normalize the fraction to its smallest representation. 
- * e.g. 4/16 -> 1/4, 14/28 -> 1/2, etc.
- * This is called after all math ops.
- */ Fraction.prototype.normalize = (function() {
-    var isFloat = function(n) {
-        return typeof n === 'number' && (n > 0 && n % 1 > 0 && n % 1 < 1 || n < 0 && n % -1 < 0 && n % -1 > -1);
-    };
-    var roundToPlaces = function(n, places) {
-        if (!places) return Math.round(n);
-        else {
-            var scalar = Math.pow(10, places);
-            return Math.round(n * scalar) / scalar;
-        }
-    };
-    return function() {
-        // XXX hackish.  Is there a better way to address this issue?
-        //
-        /* first check if we have decimals, and if we do eliminate them
-         * multiply by the 10 ^ number of decimal places in the number
-         * round the number to nine decimal places
-         * to avoid js floating point funnies
-         */ if (isFloat(this.denominator)) {
-            var rounded = roundToPlaces(this.denominator, 9);
-            var scaleup = Math.pow(10, rounded.toString().split('.')[1].length);
-            this.denominator = Math.round(this.denominator * scaleup); // this !!! should be a whole number
-            //this.numerator *= scaleup;
-            this.numerator *= scaleup;
-        }
-        if (isFloat(this.numerator)) {
-            var rounded = roundToPlaces(this.numerator, 9);
-            var scaleup = Math.pow(10, rounded.toString().split('.')[1].length);
-            this.numerator = Math.round(this.numerator * scaleup); // this !!! should be a whole number
-            //this.numerator *= scaleup;
-            this.denominator *= scaleup;
-        }
-        var gcf = Fraction.gcf(this.numerator, this.denominator);
-        this.numerator /= gcf;
-        this.denominator /= gcf;
-        if (this.numerator < 0 && this.denominator < 0 || this.numerator > 0 && this.denominator < 0) {
-            this.numerator *= -1;
-            this.denominator *= -1;
-        }
-        return this;
-    };
-})();
-/* Takes two numbers and returns their greatest common factor.
- */ Fraction.gcf = function(a, b) {
-    var common_factors = [];
-    var fa = Fraction.primeFactors(a);
-    var fb = Fraction.primeFactors(b);
-    // for each factor in fa
-    // if it's also in fb
-    // put it into the common factors
-    fa.forEach(function(factor) {
-        var i = fb.indexOf(factor);
-        if (i >= 0) {
-            common_factors.push(factor);
-            fb.splice(i, 1); // remove from fb
-        }
-    });
-    if (common_factors.length === 0) return 1;
-    var gcf = function() {
-        var r = common_factors[0];
-        var i;
-        for(i = 1; i < common_factors.length; i++)r = r * common_factors[i];
-        return r;
-    }();
-    return gcf;
-};
-// Adapted from: 
-// http://www.btinternet.com/~se16/js/factor.htm
-Fraction.primeFactors = function(n) {
-    var num = Math.abs(n);
-    var factors = [];
-    var _factor = 2; // first potential prime factor
-    while(_factor * _factor <= num)if (num % _factor === 0) {
-        factors.push(_factor); // so keep it
-        num = num / _factor; // and divide our search point by it
-    } else _factor++; // and increment
-    if (num != 1) factors.push(num); //    so it too should be recorded
-    return factors; // Return the prime factors
-};
-module.exports.Fraction = Fraction;
-
-},{}],"9dvKv":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-//Parent view class that contains the general methods so the other views can reuse it:
-//Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
-var _iconsSvg = require("url:../../img/icons.svg");
-var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
-class View {
-    _data;
-    render(data) {
-        //Handling in case the data does not exist, example the user searching for something that does not exist:
-        //So checking if the data exists OR if the data is an array AND if its empty:
-        if (!data || Array.isArray(data) && data.length === 0) return this.renderError();
-        this._data = data;
-        const markup = this._generateMarkup();
-        //Removing the default message:
-        this._clear();
-        //Inserting the markup to the html:
-        this._parentElement.insertAdjacentHTML("afterbegin", markup);
-    }
-    //Method responsible for rendering the error to the users:
-    //Using the default to get the commom error message from the view itself;
-    renderError(message = this._errorMessage) {
-        this._clear();
-        const markup = `
-			<div class="error">
-				<div>
-					<svg>
-					<use href="${_iconsSvgDefault.default}#icon-alert-triangle"></use>
-					</svg>
-				</div>
-				<p>${message}</p>
-			</div>
-		`;
-        this._parentElement.insertAdjacentHTML("afterbegin", markup);
-    }
-    //Method to render general messages to the user interface:
-    renderMessage(message1 = this._message) {
-        const markup = `
-			<div class="message">
-				<div>
-					<svg>
-					<use href="${_iconsSvgDefault.default}#icon-smile"></use>
-					</svg>
-				</div>
-				<p>${message1}</p>
-			</div>
-		`;
-        this._clear();
-        this._parentElement.insertAdjacentHTML("afterbegin", markup);
-    }
-    //Simple method to clear the parent html before rendering anythin into it:
-    _clear() {
-        this._parentElement.innerHTML = "";
-    }
-    //Render the spinner when the user is loading the recipe:
-    renderSpinner() {
-        //It works because inside the css for the spinner class theres is a spinning animation already;
-        const markup = `
-			<div class="spinner">  
-				<svg>
-					<use href="${_iconsSvgDefault.default}#icon-loader"></use>
-				</svg>
-			</div>
-		`;
-        this._clear();
-        this._parentElement.insertAdjacentHTML("afterbegin", markup);
-    }
-}
-exports.default = View;
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","url:../../img/icons.svg":"5jwFy"}],"jcq1q":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-//Class responsible for handling the search bar and btn for the user interface, passing the values to the controller to make the query:
-class SearchView {
-    //Selecting the parent element that contains the search bar and the button:
-    _parentEl = document.querySelector(".search");
-    //Method for returning whatever the user has typed in the search bar, selecting the form field and getting the value:
-    getQuery() {
-        const query = this._parentEl.querySelector(".search__field").value;
-        this._clearInout();
-        return query;
-    }
-    //Publisher necessary to listing to the btn events, needing the subscriber in the controller:
-    addHandlerSearch(handler) {
-        this._parentEl.addEventListener("submit", function(e) {
-            //Preventing the form from realoading the page:
-            e.preventDefault();
-            //Now calling the handler function coming from the controller:
-            handler();
-        });
-    }
-    //Clearing the input field aftier hiting submit:
-    _clearInout() {
-        return this._parentEl.querySelector(".search__field").value = "";
-    }
-}
-exports.default = new SearchView();
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"5peDB":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-//Class responsible for rendering the search results to the user:
-//Importing the parent View class:
-var _view = require("./View");
-var _viewDefault = parcelHelpers.interopDefault(_view);
-//Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
-var _iconsSvg = require("url:../../img/icons.svg");
-var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
-class ResultsView extends _viewDefault.default {
-    _parentElement = document.querySelector(".results");
-    //Private field for the default error message;
-    _errorMessage = "No recipes found for your query. Try again.";
-    //Private field for the default general message;
-    _message = "";
-    //Method to generate html code so the parent method View.render can load it to the user screen:
-    _generateMarkup() {
-        //Since the result comming from the controller will be an array, we need to loop over it and then join it all together:
-        return this._data.map(this._generateMarkupPreview).join("");
-    }
-    //Method responsible for generating the html for each result, to be passed in the map method for the _data:
-    _generateMarkupPreview(result) {
-        return `
-      <li class="preview">
-        <a class="preview__link" href="#${result.id}">
-        <figure class="preview__fig">
-            <img src="${result.image}" alt="${result.title}" />
-        </figure>
-        <div class="preview__data">
-          <h4 class="preview__title">${result.title}</h4>
-          <p class="preview__publisher">${result.publisher}</p>
-        </div>
-        </a>
-      </li>
-    `;
-    }
-}
-exports.default = new ResultsView();
-
-},{"./View":"9dvKv","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","url:../../img/icons.svg":"5jwFy"}],"2PAUD":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-//Class responsible for rendering the page btn in the user seraches:
-//Importing the parent View class:
-var _view = require("./View");
-var _viewDefault = parcelHelpers.interopDefault(_view);
-//Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
-var _iconsSvg = require("url:../../img/icons.svg");
-var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
-class PaginationView extends _viewDefault.default {
-    _parentElement = document.querySelector(".pagination");
-    //Publisher necessary to listing to the page btn events, needing the subscriber in the controller:
-    addHandlerClick(handler) {
-        //Since there may be two btns, we set the event listener to the parent element:
-        this._parentElement.addEventListener("click", function(e) {
-            //Finding which btn was clicked using the closest method:
-            const btn = e.target.closest(".btn--inline");
-            //Guard clause in case the user clicks anywhere but the btn:
-            if (!btn) return;
-            //With the data-goto attribute in each btn, we know where the pagination should go, converting it to a number with the + sign
-            const goToPage = +btn.dataset.goto;
-            //Passing the page num to the handler function to be used in the controller:
-            handler(goToPage);
-        });
-    }
-    //Method responsible for generating the html for each result, to be passed in the map method for the _data:
-    _generateMarkup() {
-        //Variable with the current page:
-        const curPage = this._data.page;
-        //Finding out how many pages there are for the current result:
-        //Dividing the total number of results by the number of results we want on a page (rounded by the next integer):
-        const numPages = Math.ceil(this._data.results.length / this._data.resultsPerPage);
-        //Page 1 and there are other pages:
-        if (curPage === 1 && numPages > 1) //Returning the next page btn
-        return `
-        <button data-goto="${curPage + 1}" class="btn--inline pagination__btn--next">
-          <span>Page ${curPage + 1}</span>
-          <svg class="search__icon">
-            <use href="${_iconsSvgDefault.default}#icon-arrow-right"></use>
-          </svg>
-        </button>
-      `;
-        //Last Page
-        if (curPage === numPages && numPages > 1) //Returning the previous page btn
-        return `
-        <button data-goto="${curPage - 1}" class="btn--inline pagination__btn--prev">
-          <svg class="search__icon">
-            <use href="${_iconsSvgDefault.default}#icon-arrow-left"></use>
-          </svg>
-          <span>Page ${curPage - 1}</span>
-        </button>
-      `;
-        //Other Page
-        if (curPage < numPages) //Returning both btns
-        return `
-        <button data-goto="${curPage - 1}" class="btn--inline pagination__btn--prev">
-          <svg class="search__icon">
-            <use href="${_iconsSvgDefault.default}#icon-arrow-left"></use>
-          </svg>
-          <span>Page ${curPage - 1}</span>
-        </button>
-
-        <button data-goto="${curPage + 1}" class="btn--inline pagination__btn--next">
-          <span>Page ${curPage + 1}</span>
-          <svg class="search__icon">
-            <use href="${_iconsSvgDefault.default}#icon-arrow-right"></use>
-          </svg>
-        </button>
-      `;
-        //Page 1 and there are NO other pages. Not rendering any btn because there is no other pages:
-        return "";
-    }
-}
-exports.default = new PaginationView();
-
-},{"./View":"9dvKv","url:../../img/icons.svg":"5jwFy","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}]},["kS06O","lA0Es"], "lA0Es", "parcelRequire3a11")
+},{}]},["kS06O","lA0Es"], "lA0Es", "parcelRequire3a11")
 
 //# sourceMappingURL=index.05cf099e.js.map

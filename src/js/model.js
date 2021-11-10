@@ -84,3 +84,15 @@ export function getSearchResultsPage(page = state.search.page) {
 
 	return state.search.results.slice(start, end);
 }
+
+//Function that will update the ingredients quantity values of the recipe according to the servings that will be coming from the controller:
+export function updateServings(newServings) {
+	//Updating the ingredients array to multiply the quantity by the new servings number:
+	//Using the formula: newQuantity = oldQuantity * newServings / oldServings;
+	state.recipe.ingredients.forEach((ing) => {
+		ing.quantity = (ing.quantity * newServings) / state.recipe.servings;
+	});
+
+	//Now update the servings in the state object:
+	state.recipe.servings = newServings;
+}

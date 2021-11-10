@@ -36,7 +36,6 @@ export async function loadRecipe(id) {
 			cookingTime: recipe.cooking_time,
 			ingredients: recipe.ingredients,
 		};
-		console.log(recipe);
 	} catch (error) {
 		//Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
 		throw error;

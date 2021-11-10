@@ -1,18 +1,18 @@
 //Class responsible for handling the search bar and btn for the user interface, passing the values to the controller to make the query:
 class SearchView {
 	//Selecting the parent element that contains the search bar and the button:
-	#parentEl = document.querySelector(".search");
+	_parentEl = document.querySelector(".search");
 
 	//Method for returning whatever the user has typed in the search bar, selecting the form field and getting the value:
 	getQuery() {
-		const query = this.#parentEl.querySelector(".search__field").value;
-		this.#clearInout();
+		const query = this._parentEl.querySelector(".search__field").value;
+		this._clearInout();
 		return query;
 	}
 
 	//Publisher necessary to listing to the btn events, needing the subscriber in the controller:
 	addHandlerSearch(handler) {
-		this.#parentEl.addEventListener("submit", function (e) {
+		this._parentEl.addEventListener("submit", function (e) {
 			//Preventing the form from realoading the page:
 			e.preventDefault();
 			//Now calling the handler function coming from the controller:
@@ -21,8 +21,8 @@ class SearchView {
 	}
 
 	//Clearing the input field aftier hiting submit:
-	#clearInout() {
-		return (this.#parentEl.querySelector(".search__field").value = "");
+	_clearInout() {
+		return (this._parentEl.querySelector(".search__field").value = "");
 	}
 }
 

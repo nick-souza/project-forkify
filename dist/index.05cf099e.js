@@ -468,10 +468,14 @@ var _recipeViewJsDefault = parcelHelpers.interopDefault(_recipeViewJs);
 //Importing the search view:
 var _searchViewJs = require("./views/searchView.js");
 var _searchViewJsDefault = parcelHelpers.interopDefault(_searchViewJs);
+//Importing the result view:
+var _resultsViewJs = require("./views/resultsView.js");
+var _resultsViewJsDefault = parcelHelpers.interopDefault(_resultsViewJs);
 //Imports for parcel to use when building to be able to polyfill
 var _stable = require("core-js/stable");
 var _runtime = require("regenerator-runtime/runtime");
-const recipeContainer = document.querySelector(".recipe");
+//Hot reload for Percel:
+if (module.hot) module.hot.accept();
 //API Call:
 async function controlRecipes() {
     try {
@@ -496,13 +500,16 @@ async function controlRecipes() {
 //Function resposible for calling the model function to search the recipes, passing in the query. Since the model function returns a promise, we have to handle that as well:
 async function controlSearchResults() {
     try {
+        //Rendering the spinner when the results are loading:
+        _resultsViewJsDefault.default.renderSpinner();
         //Getting the query for the api call from the view:
         const query = _searchViewJsDefault.default.getQuery();
         //Guard clause in case there is no query:
         if (!query) return;
         //No need to store it in a variable, since the model already saves it to the state object. Also have to await because it is a async function:
         await _modelJs.loadSearchResults(query);
-        console.log(_modelJs.state.search.results);
+        //Passing the state object with the stored results to the view so it can render it to the user:
+        _resultsViewJsDefault.default.render(_modelJs.state.search.results);
     } catch (error) {
     }
 }
@@ -515,7 +522,7 @@ function init() {
 }
 init();
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","./model.js":"1pVJj","./views/recipeView.js":"82pEw","./views/searchView.js":"jcq1q"}],"ciiiV":[function(require,module,exports) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","./model.js":"1pVJj","./views/recipeView.js":"82pEw","./views/searchView.js":"jcq1q","./views/resultsView.js":"5peDB"}],"ciiiV":[function(require,module,exports) {
 exports.interopDefault = function(a) {
     return a && a.__esModule ? a : {
         default: a
@@ -13633,7 +13640,6 @@ async function loadRecipe(id) {
             cookingTime: recipe.cooking_time,
             ingredients: recipe.ingredients
         };
-        console.log(recipe);
     } catch (error) {
         //Throwing the error again here, so we can handle it wherever we are calling this function, otherwise it would be a fulfilled promise even with the error;
         throw error;
@@ -13705,75 +13711,23 @@ async function getJSON(url) {
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","./config":"6V52N"}],"82pEw":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
+//Importing the parent View class:
+var _view = require("./View");
+var _viewDefault = parcelHelpers.interopDefault(_view);
 //Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
 var _iconsSvg = require("url:../../img/icons.svg");
 var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
 //Importing a external library, fractional, to show the recipes number like fractions, instead of like 0.5;
 var _fractional = require("fractional");
-class RecipeView {
-    //Setting private variables:
-    #parentElement = document.querySelector(".recipe");
-    #data;
+//Extending the parent class View, to inherit all the methods:
+class RecipeView extends _viewDefault.default {
+    //Setting private variables (Using the _ convention):
+    //Setting the parent element in each view to be able to reuse the methods from the parent View class:
+    _parentElement = document.querySelector(".recipe");
     //Private field for the default error message;
-    #errorMessage = "Recipe not found. Please try again.";
+    _errorMessage = "Recipe not found. Please try again.";
     //Private field for the default general message;
-    #message = "";
-    render(data) {
-        this.#data = data;
-        const markup = this.#generateMarkup();
-        //Removing the default message:
-        this.#clear();
-        //Inserting the markup to the html:
-        this.#parentElement.insertAdjacentHTML("afterbegin", markup);
-    }
-    //Method responsible for rendering the error to the users:
-    //Using the default to get the commom error message from the view itself;
-    renderError(message = this.#errorMessage) {
-        const markup = `
-			<div class="error">
-				<div>
-					<svg>
-					<use href="${_iconsSvgDefault.default}#icon-alert-triangle"></use>
-					</svg>
-				</div>
-				<p>${message}</p>
-			</div>
-		`;
-        this.#clear();
-        this.#parentElement.insertAdjacentHTML("afterbegin", markup);
-    }
-    //Method to render general messages to the user interface:
-    renderMessage(message1 = this.#message) {
-        const markup = `
-			<div class="message">
-				<div>
-					<svg>
-					<use href="${_iconsSvgDefault.default}#icon-smile"></use>
-					</svg>
-				</div>
-				<p>${message1}</p>
-			</div>
-		`;
-        this.#clear();
-        this.#parentElement.insertAdjacentHTML("afterbegin", markup);
-    }
-    //Simple method to clear the parent html before rendering anythin into it:
-     #clear() {
-        this.#parentElement.innerHTML = "";
-    }
-    //Render the spinner when the user is loading the recipe:
-    renderSpinner() {
-        //It works because inside the css for the spinner class theres is a spinning animation already;
-        const markup = `
-			<div class="spinner">  
-				<svg>
-					<use href="${_iconsSvgDefault.default}#icon-loader"></use>
-				</svg>
-			</div>
-		`;
-        this.#clear();
-        this.#parentElement.insertAdjacentHTML("afterbegin", markup);
-    }
+    _message = "";
     //Method to take care of the listeners, using the PubSub Design Pattern, this method being the publisher, need access to the subscriber;
     addHandlerRender(handler) {
         //Listening for the recipe id and hash to change, so we can change the rendered recipe accordingly.
@@ -13788,12 +13742,12 @@ class RecipeView {
         );
     }
     //Since the render method will be present in all the views, is better to add the renderRecipe in a separete private method:
-     #generateMarkup() {
+    _generateMarkup() {
         return `
       <figure class="recipe__fig">
-          <img src="${this.#data.image}" alt="${this.#data.title}" class="recipe__img" />
+          <img src="${this._data.image}" alt="${this._data.title}" class="recipe__img" />
           <h1 class="recipe__title">
-          <span>${this.#data.title}</span>
+          <span>${this._data.title}</span>
           </h1>
       </figure>
 
@@ -13802,14 +13756,14 @@ class RecipeView {
           <svg class="recipe__info-icon">
               <use href="${_iconsSvgDefault.default}#icon-clock"></use>
           </svg>
-          <span class="recipe__info-data recipe__info-data--minutes">${this.#data.cookingTime}</span>
+          <span class="recipe__info-data recipe__info-data--minutes">${this._data.cookingTime}</span>
           <span class="recipe__info-text">minutes</span>
           </div>
           <div class="recipe__info">
           <svg class="recipe__info-icon">
               <use href="${_iconsSvgDefault.default}#icon-users"></use>
           </svg>
-          <span class="recipe__info-data recipe__info-data--people">${this.#data.servings}</span>
+          <span class="recipe__info-data recipe__info-data--people">${this._data.servings}</span>
           <span class="recipe__info-text">servings</span>
 
           <div class="recipe__info-buttons">
@@ -13827,22 +13781,20 @@ class RecipeView {
           </div>
 
           <div class="recipe__user-generated">
-          <svg>
-              <use href="${_iconsSvgDefault.default}#icon-user"></use>
-          </svg>
+          
           </div>
+
           <button class="btn--round">
-          <svg class="">
-              <use href="${_iconsSvgDefault.default}#icon-bookmark-fill"></use>
-          </svg>
+            <svg class="">
+                <use href="${_iconsSvgDefault.default}#icon-bookmark-fill"></use>
+            </svg>
           </button>
       </div>
 
       <div class="recipe__ingredients">
           <h2 class="heading--2">Recipe ingredients</h2>
           <ul class="recipe__ingredient-list">
-          ${this.#data.ingredients.map(this.#generateMarkupIngredient).join("")}
-
+          ${this._data.ingredients.map(this._generateMarkupIngredient).join("")}
           </ul>
       </div>
 
@@ -13850,12 +13802,12 @@ class RecipeView {
           <h2 class="heading--2">How to cook it</h2>
           <p class="recipe__directions-text">
           This recipe was carefully designed and tested by
-          <span class="recipe__publisher">${this.#data.publisher}</span>. Please check out
+          <span class="recipe__publisher">${this._data.publisher}</span>. Please check out
           directions at their website.
           </p>
           <a
           class="btn--small recipe__btn"
-          href="${this.#data.sourceUrl}"
+          href="${this._data.sourceUrl}"
           target="_blank"
           >
           <span>Directions</span>
@@ -13867,7 +13819,7 @@ class RecipeView {
     `;
     }
     //Method to generate and render the ingredients list, that will be called in by the #generateMarkup. Just so it is more organized;
-     #generateMarkupIngredient(ing) {
+    _generateMarkupIngredient(ing) {
         return `
 			<li class="recipe__ingredient">
 			<svg class="recipe__icon">
@@ -13884,7 +13836,7 @@ class RecipeView {
 }
 exports.default = new RecipeView();
 
-},{"url:../../img/icons.svg":"5jwFy","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","fractional":"7ggqM"}],"5jwFy":[function(require,module,exports) {
+},{"url:../../img/icons.svg":"5jwFy","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","fractional":"7ggqM","./View":"9dvKv"}],"5jwFy":[function(require,module,exports) {
 module.exports = require('./helpers/bundle-url').getBundleURL('71ti3') + "icons.e7078503.svg" + "?" + Date.now();
 
 },{"./helpers/bundle-url":"chiK4"}],"chiK4":[function(require,module,exports) {
@@ -14175,22 +14127,93 @@ Fraction.primeFactors = function(n) {
 };
 module.exports.Fraction = Fraction;
 
-},{}],"jcq1q":[function(require,module,exports) {
+},{}],"9dvKv":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//Parent view class that contains the general methods so the other views can reuse it:
+//Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
+var _iconsSvg = require("url:../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class View {
+    _data;
+    render(data) {
+        //Handling in case the data does not exist, example the user searching for something that does not exist:
+        //So checking if the data exists OR if the data is an array AND if its empty:
+        if (!data || Array.isArray(data) && data.length === 0) return this.renderError();
+        this._data = data;
+        const markup = this._generateMarkup();
+        //Removing the default message:
+        this._clear();
+        //Inserting the markup to the html:
+        this._parentElement.insertAdjacentHTML("afterbegin", markup);
+    }
+    //Method responsible for rendering the error to the users:
+    //Using the default to get the commom error message from the view itself;
+    renderError(message = this._errorMessage) {
+        this._clear();
+        const markup = `
+			<div class="error">
+				<div>
+					<svg>
+					<use href="${_iconsSvgDefault.default}#icon-alert-triangle"></use>
+					</svg>
+				</div>
+				<p>${message}</p>
+			</div>
+		`;
+        this._parentElement.insertAdjacentHTML("afterbegin", markup);
+    }
+    //Method to render general messages to the user interface:
+    renderMessage(message1 = this._message) {
+        const markup = `
+			<div class="message">
+				<div>
+					<svg>
+					<use href="${_iconsSvgDefault.default}#icon-smile"></use>
+					</svg>
+				</div>
+				<p>${message1}</p>
+			</div>
+		`;
+        this._clear();
+        this._parentElement.insertAdjacentHTML("afterbegin", markup);
+    }
+    //Simple method to clear the parent html before rendering anythin into it:
+    _clear() {
+        this._parentElement.innerHTML = "";
+    }
+    //Render the spinner when the user is loading the recipe:
+    renderSpinner() {
+        //It works because inside the css for the spinner class theres is a spinning animation already;
+        const markup = `
+			<div class="spinner">  
+				<svg>
+					<use href="${_iconsSvgDefault.default}#icon-loader"></use>
+				</svg>
+			</div>
+		`;
+        this._clear();
+        this._parentElement.insertAdjacentHTML("afterbegin", markup);
+    }
+}
+exports.default = View;
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","url:../../img/icons.svg":"5jwFy"}],"jcq1q":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 //Class responsible for handling the search bar and btn for the user interface, passing the values to the controller to make the query:
 class SearchView {
     //Selecting the parent element that contains the search bar and the button:
-    #parentEl = document.querySelector(".search");
+    _parentEl = document.querySelector(".search");
     //Method for returning whatever the user has typed in the search bar, selecting the form field and getting the value:
     getQuery() {
-        const query = this.#parentEl.querySelector(".search__field").value;
-        this.#clearInout();
+        const query = this._parentEl.querySelector(".search__field").value;
+        this._clearInout();
         return query;
     }
     //Publisher necessary to listing to the btn events, needing the subscriber in the controller:
     addHandlerSearch(handler) {
-        this.#parentEl.addEventListener("submit", function(e) {
+        this._parentEl.addEventListener("submit", function(e) {
             //Preventing the form from realoading the page:
             e.preventDefault();
             //Now calling the handler function coming from the controller:
@@ -14198,12 +14221,52 @@ class SearchView {
         });
     }
     //Clearing the input field aftier hiting submit:
-     #clearInout() {
-        return this.#parentEl.querySelector(".search__field").value = "";
+    _clearInout() {
+        return this._parentEl.querySelector(".search__field").value = "";
     }
 }
 exports.default = new SearchView();
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}]},["kS06O","lA0Es"], "lA0Es", "parcelRequire3a11")
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"5peDB":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//Class responsible for rendering the search results to the user:
+//Importing the parent View class:
+var _view = require("./View");
+var _viewDefault = parcelHelpers.interopDefault(_view);
+//Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
+var _iconsSvg = require("url:../../img/icons.svg");
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class ResultsView extends _viewDefault.default {
+    _parentElement = document.querySelector(".results");
+    //Private field for the default error message;
+    _errorMessage = "No recipes found for your query. Try again.";
+    //Private field for the default general message;
+    _message = "";
+    //Method to generate html code so the parent method View.render can load it to the user screen:
+    _generateMarkup() {
+        //Since the result comming from the controller will be an array, we need to loop over it and then join it all together:
+        return this._data.map(this._generateMarkupPreview).join("");
+    }
+    //Method responsible for generating the html for each result, to be passed in the map method for the _data:
+    _generateMarkupPreview(result) {
+        return `
+      <li class="preview">
+        <a class="preview__link" href="#${result.id}">
+        <figure class="preview__fig">
+            <img src="${result.image}" alt="${result.title}" />
+        </figure>
+        <div class="preview__data">
+          <h4 class="preview__title">${result.title}</h4>
+          <p class="preview__publisher">${result.publisher}</p>
+        </div>
+        </a>
+      </li>
+    `;
+    }
+}
+exports.default = new ResultsView();
+
+},{"./View":"9dvKv","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","url:../../img/icons.svg":"5jwFy"}]},["kS06O","lA0Es"], "lA0Es", "parcelRequire3a11")
 
 //# sourceMappingURL=index.05cf099e.js.map

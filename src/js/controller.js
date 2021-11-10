@@ -4,12 +4,17 @@ import * as model from "./model.js";
 import recipeView from "./views/recipeView.js";
 //Importing the search view:
 import searchView from "./views/searchView.js";
+//Importing the result view:
+import resultsView from "./views/resultsView.js";
 
 //Imports for parcel to use when building to be able to polyfill
 import "core-js/stable";
 import "regenerator-runtime/runtime";
 
-const recipeContainer = document.querySelector(".recipe");
+//Hot reload for Percel:
+if (module.hot) {
+	module.hot.accept();
+}
 
 //API Call:
 async function controlRecipes() {
@@ -40,6 +45,9 @@ async function controlRecipes() {
 //Function resposible for calling the model function to search the recipes, passing in the query. Since the model function returns a promise, we have to handle that as well:
 async function controlSearchResults() {
 	try {
+		//Rendering the spinner when the results are loading:
+		resultsView.renderSpinner();
+
 		//Getting the query for the api call from the view:
 		const query = searchView.getQuery();
 		//Guard clause in case there is no query:
@@ -48,7 +56,8 @@ async function controlSearchResults() {
 		//No need to store it in a variable, since the model already saves it to the state object. Also have to await because it is a async function:
 		await model.loadSearchResults(query);
 
-		console.log(model.state.search.results);
+		//Passing the state object with the stored results to the view so it can render it to the user:
+		resultsView.render(model.state.search.results);
 	} catch (error) {}
 }
 

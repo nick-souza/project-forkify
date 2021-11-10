@@ -22,9 +22,15 @@ class ResultsView extends View {
 
 	//Method responsible for generating the html for each result, to be passed in the map method for the _data:
 	_generateMarkupPreview(result) {
+		//Functionality to make the current recipe selected, active
+		//Getting the id from the search bar, minus the #symbol:
+		const id = window.location.hash.slice(1);
+
 		return `
       <li class="preview">
-        <a class="preview__link" href="#${result.id}">
+        <a class="preview__link ${
+					result.id === id ? "preview__link--active" : ""
+				}" href="#${result.id}">
         <figure class="preview__fig">
             <img src="${result.image}" alt="${result.title}" />
         </figure>

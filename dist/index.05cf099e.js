@@ -489,6 +489,8 @@ async function controlRecipes() {
         if (!id) return;
         //Rendering the spinner while the user loads the call from the api, from the view;
         _recipeViewJsDefault.default.renderSpinner();
+        //Updating results view to mark selected search results:
+        _resultsViewJsDefault.default.update(_modelJs.getSearchResultsPage());
         //Calling the function from the model to load the recipes from the api, passing the id we got from the hashcode;
         //And since this is a async function, it always returns a promise, se we have to await it:
         await _modelJs.loadRecipe(id);
@@ -531,8 +533,8 @@ function controlPagination(goToPage) {
 function controlServings(newServings) {
     //Calling the model passing the amount of servings:
     _modelJs.updateServings(newServings);
-    //Now just rendering the recipe again with the new servings:
-    _recipeViewJsDefault.default.render(_modelJs.state.recipe);
+    //Now just calling the update method to only change the elements that were affected by that change:
+    _recipeViewJsDefault.default.update(_modelJs.state.recipe);
 }
 function init() {
     //Using the PubSub Design Pattern;
@@ -914,6 +916,30 @@ class View {
         this._clear();
         this._parentElement.insertAdjacentHTML("afterbegin", markup);
     }
+    update(data1) {
+        //We still want the date to be equal to the new data;
+        this._data = data1;
+        //Now we want to generate the new markup, with the changes
+        const newMarkup = this._generateMarkup();
+        //But since the markup is still just a string, we can convert to a DOM element to be easier to check for changes:
+        const newDOM = document.createRange().createContextualFragment(newMarkup);
+        //Selecting the new elements with the changes, and converting the node list that was returned to a real Array;
+        const newElements = Array.from(newDOM.querySelectorAll("*"));
+        //We now have the entire page as a DOM element, with all the changes made, that we can use to compare with the one that the user is stil seeing to then only render the changes, and not the entire element;
+        //But we also need to select the current elements to know the difference, and convert to a real array as well;
+        const curElements = Array.from(this._parentElement.querySelectorAll("*"));
+        //Now we can loop over the two arrays, using forEach and getting the index and use the method isEqualNode to check for changes:
+        newElements.forEach((newEl, i)=>{
+            //Getting the same current element using the index from the forEach
+            const curEl = curElements[i];
+            //Now if the newEl is different from the curEl AND if the node is an actual text, we can change it:
+            //The method nodeValue returns null for all elementes that are not texts, and we can use it since we only want to change the text content
+            if (!newEl.isEqualNode(curEl) && newEl.firstChild.nodeValue.trim() !== "") curEl.textContent = newEl.textContent;
+            //And now we need to do the same but for attributes, since the btns contains different attributes like increasing the servings ammount
+            if (!newEl.isEqualNode(curEl)) Array.from(newEl.attributes).forEach((att)=>curEl.setAttribute(att.name, att.value)
+            );
+        });
+    }
     //Simple method to clear the parent html before rendering anythin into it:
     _clear() {
         this._parentElement.innerHTML = "";
@@ -1277,9 +1303,12 @@ class ResultsView extends _viewDefault.default {
     }
     //Method responsible for generating the html for each result, to be passed in the map method for the _data:
     _generateMarkupPreview(result) {
+        //Functionality to make the current recipe selected, active
+        //Getting the id from the search bar, minus the #symbol:
+        const id = window.location.hash.slice(1);
         return `
       <li class="preview">
-        <a class="preview__link" href="#${result.id}">
+        <a class="preview__link ${result.id === id ? "preview__link--active" : ""}" href="#${result.id}">
         <figure class="preview__fig">
             <img src="${result.image}" alt="${result.title}" />
         </figure>

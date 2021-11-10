@@ -31,6 +31,9 @@ async function controlRecipes() {
 		//Rendering the spinner while the user loads the call from the api, from the view;
 		recipeView.renderSpinner();
 
+		//Updating results view to mark selected search results:
+		resultsView.update(model.getSearchResultsPage());
+
 		//Calling the function from the model to load the recipes from the api, passing the id we got from the hashcode;
 		//And since this is a async function, it always returns a promise, se we have to await it:
 		await model.loadRecipe(id);
@@ -83,8 +86,8 @@ function controlServings(newServings) {
 	//Calling the model passing the amount of servings:
 	model.updateServings(newServings);
 
-	//Now just rendering the recipe again with the new servings:
-	recipeView.render(model.state.recipe);
+	//Now just calling the update method to only change the elements that were affected by that change:
+	recipeView.update(model.state.recipe);
 }
 
 function init() {

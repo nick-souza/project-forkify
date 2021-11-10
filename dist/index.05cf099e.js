@@ -477,11 +477,18 @@ var _paginationViewJsDefault = parcelHelpers.interopDefault(_paginationViewJs);
 //Importing the bookmarks view:
 var _bookmarksViewJs = require("./views/bookmarksView.js");
 var _bookmarksViewJsDefault = parcelHelpers.interopDefault(_bookmarksViewJs);
+//Importing the add recipe view:
+var _addRecipeViewJs = require("./views/addRecipeView.js");
+var _addRecipeViewJsDefault = parcelHelpers.interopDefault(_addRecipeViewJs);
+//Getting the modal close variable
+var _configJs = require("./config.js");
 //Imports for parcel to use when building to be able to polyfill
 var _stable = require("core-js/stable");
 var _runtime = require("regenerator-runtime/runtime");
 //Hot reload for Percel:
-if (module.hot) module.hot.accept();
+// if (module.hot) {
+// 	module.hot.accept();
+// }
 //API Call:
 async function controlRecipes() {
     try {
@@ -510,12 +517,12 @@ async function controlRecipes() {
 //Function resposible for calling the model function to search the recipes, passing in the query. Since the model function returns a promise, we have to handle that as well:
 async function controlSearchResults() {
     try {
+        //Rendering the spinner when the results are loading:
+        _resultsViewJsDefault.default.renderSpinner();
         //Getting the query for the api call from the view:
         const query = _searchViewJsDefault.default.getQuery();
         //Guard clause in case there is no query:
         if (!query) return;
-        //Rendering the spinner when the results are loading:
-        _resultsViewJsDefault.default.renderSpinner();
         //No need to store it in a variable, since the model already saves it to the state object. Also have to await because it is a async function:
         await _modelJs.loadSearchResults(query);
         //Passing the state object with the stored results to the view so it can render it to the user:
@@ -554,6 +561,29 @@ function controlAddBookmark() {
 function controlBookmarks() {
     _bookmarksViewJsDefault.default.render(_modelJs.state.bookmarks);
 }
+//Method for adding our own recipe:
+async function controlAddRecipe(newRecipe) {
+    //Using the try catch to return any errors if the user does not input in the right format:
+    try {
+        //render spinner
+        _addRecipeViewJsDefault.default.renderSpinner();
+        await _modelJs.uploadRecipe(newRecipe);
+        //Rendering the created recipe to the user:
+        _recipeViewJsDefault.default.render(_modelJs.state.recipe);
+        //Displaying success message:
+        _addRecipeViewJsDefault.default.renderMessage();
+        // Render bookmark view
+        _bookmarksViewJsDefault.default.render(_modelJs.state.bookmarks);
+        // Change ID in URL
+        window.history.pushState(null, "", `#${_modelJs.state.recipe.id}`);
+        //Closing the form after the timeout to display a success message:
+        setTimeout(function() {
+            _addRecipeViewJsDefault.default.toggleWindow();
+        }, _configJs.MODAL_CLOSE_SEC * 1000);
+    } catch (error) {
+        _addRecipeViewJsDefault.default.renderError(error.message);
+    }
+}
 function init() {
     //Using the PubSub Design Pattern;
     //Passing the subscriber (controlRecipes) to the publisher in the recipeView, so it can handle the event listeners:
@@ -567,10 +597,11 @@ function init() {
     //Passing the subscriber to the publisher in the recipeView, so it can handle the bookmark btn event listeners:
     _recipeViewJsDefault.default.addHandlerAddBookmark(controlAddBookmark);
     _bookmarksViewJsDefault.default.addHandlerRender(controlBookmarks);
+    _addRecipeViewJsDefault.default.addHandlerUploar(controlAddRecipe);
 }
 init();
 
-},{"./model.js":"1pVJj","./views/recipeView.js":"82pEw","./views/searchView.js":"jcq1q","./views/resultsView.js":"5peDB","./views/paginationView.js":"2PAUD","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","./views/bookmarksView.js":"764v9"}],"1pVJj":[function(require,module,exports) {
+},{"./model.js":"1pVJj","./views/recipeView.js":"82pEw","./views/searchView.js":"jcq1q","./views/resultsView.js":"5peDB","./views/paginationView.js":"2PAUD","core-js/stable":"95FYz","regenerator-runtime/runtime":"1EBPE","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","./views/bookmarksView.js":"764v9","./views/addRecipeView.js":"Lo2AT","./config.js":"6V52N"}],"1pVJj":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "state", ()=>state
@@ -595,6 +626,9 @@ parcelHelpers.export(exports, "addBookmark", ()=>addBookmark
 //Function to remove bookmarked recipe
 parcelHelpers.export(exports, "deleteBookmark", ()=>deleteBookmark
 );
+//Function to upload the created recipe to the API:
+parcelHelpers.export(exports, "uploadRecipe", ()=>uploadRecipe
+);
 //Importing the config file, so we can use the API url and other constant variables:
 var _config = require("./config");
 //Importing the helper file to get access to those functions:
@@ -612,26 +646,35 @@ const state = {
     //Array to store the bookmarks:
     bookmarks: []
 };
+//Function to create the recipe object by receiving from the api:
+function createRecipeObject(data) {
+    //Creating a new variable to manipulate the recipe result from the call:
+    // let recipe = data.data.recipe;
+    //Since they have the same name we can use destructuring already:
+    const { recipe  } = data.data;
+    //Now just renaming the properties name and assigning it to the state variable:
+    return {
+        id: recipe.id,
+        title: recipe.title,
+        publisher: recipe.publisher,
+        sourceUrl: recipe.source_url,
+        image: recipe.image_url,
+        servings: recipe.servings,
+        cookingTime: recipe.cooking_time,
+        ingredients: recipe.ingredients,
+        //Adding the property key, but only for the recipes we created:
+        ...recipe.key && {
+            key: recipe.key
+        }
+    };
+}
 async function loadRecipe(id) {
     try {
         //Calling the function responsible to make the API call, passing in the global variable API_URL that is in the config file and the id that will be in the search bar;
         //And since the return of that function will be the resolve value of the promise, making the data here another promise, we have to also await;
         const data = await _helpers.getJSON(`${_config.API_URL}${id}`);
-        //Creating a new variable to manipulate the recipe result from the call:
-        // let recipe = data.data.recipe;
-        //Since they have the same name we can use destructuring already:
-        const { recipe  } = data.data;
-        //Now just renaming the properties name and assigning it to the state variable:
-        state.recipe = {
-            id: recipe.id,
-            title: recipe.title,
-            publisher: recipe.publisher,
-            sourceUrl: recipe.source_url,
-            image: recipe.image_url,
-            servings: recipe.servings,
-            cookingTime: recipe.cooking_time,
-            ingredients: recipe.ingredients
-        };
+        //Putting the created object in the state:
+        state.recipe = createRecipeObject(data);
         //Now checking to see if there is a recipe already loaded in the bookmarks, so we attatch the bookmarked property and render the bookmarked icon:
         //So every recipe we load will habe the bookmarked property to either true or false;
         if (state.bookmarks.some((bookmark)=>bookmark.id === id
@@ -707,6 +750,41 @@ function deleteBookmark(id) {
     //Calling the persist bookmark
     persistBookmark();
 }
+async function uploadRecipe(newRecipe) {
+    try {
+        //Getting the ingredients from the object, first converting back to an array, then using the filter method to get only the ingredients:
+        //Also filtering out the empty inputs, in case the user uses less ingredients;
+        const ingredients = Object.entries(newRecipe).filter((entry)=>entry[0].startsWith("ingredient") && entry[1] !== ""
+        ).map((ing)=>{
+            //Now destructuring and replacing the blank spaces and spliting by the comma:
+            const ingArr = ing[1].replaceAll(" ", "").split(",");
+            //Checking if the array has the right length of 3:
+            if (ingArr.length !== 3) throw new Error("Wrong ingredient format.");
+            const [quantity, unit, description] = ingArr;
+            return {
+                quantity: quantity ? +quantity : null,
+                unit,
+                description
+            };
+        });
+        const recipe = {
+            title: newRecipe.title,
+            source_url: newRecipe.sourceUrl,
+            image_url: newRecipe.image,
+            publisher: newRecipe.publisher,
+            cooking_time: +newRecipe.cookingTime,
+            servings: +newRecipe.servings,
+            ingredients
+        };
+        const data = await _helpers.sendJSON(`${_config.API_URL}?key=${_config.KEY}`, recipe);
+        //Creating the object from the data of the new recipe
+        state.recipe = createRecipeObject(data);
+        //Adding the created recipe to the bookmarks:
+        addBookmark(state.recipe);
+    } catch (error) {
+        throw error;
+    }
+}
 //Loading the recipes from the local storage bookmarks when the application starts
 function init() {
     //Getting it out and storing it in a variable:
@@ -725,9 +803,15 @@ parcelHelpers.export(exports, "TIMEOUT_SEC", ()=>TIMEOUT_SEC
 );
 parcelHelpers.export(exports, "RES_PER_PAGE", ()=>RES_PER_PAGE
 );
+parcelHelpers.export(exports, "KEY", ()=>KEY
+);
+parcelHelpers.export(exports, "MODAL_CLOSE_SEC", ()=>MODAL_CLOSE_SEC
+);
 const API_URL = "https://forkify-api.herokuapp.com/api/v2/recipes/";
 const TIMEOUT_SEC = 10;
 const RES_PER_PAGE = 10;
+const KEY = "3541eb96-ddb4-42ad-a0c1-304e75574777";
+const MODAL_CLOSE_SEC = 2.5;
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"ciiiV":[function(require,module,exports) {
 exports.interopDefault = function(a) {
@@ -764,6 +848,8 @@ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "getJSON", ()=>getJSON
 );
+parcelHelpers.export(exports, "sendJSON", ()=>sendJSON
+);
 //Helper file that will contain helper functions that we will reuse many times accross the project:
 //Importing the config file:
 var _config = require("./config");
@@ -790,6 +876,26 @@ async function getJSON(url) {
         throw error;
     }
 }
+const sendJSON = async function(url, uploadData) {
+    try {
+        const fetchPro = fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(uploadData)
+        });
+        const res = await Promise.race([
+            fetchPro,
+            timeout(_config.TIMEOUT_SEC)
+        ]);
+        const data = await res.json();
+        if (!res.ok) throw new Error(`${data.message} (${res.status})`);
+        return data;
+    } catch (err) {
+        throw err;
+    }
+};
 
 },{"./config":"6V52N","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"82pEw":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
@@ -949,12 +1055,13 @@ var _iconsSvg = require("url:../../img/icons.svg");
 var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
 class View {
     _data;
-    render(data) {
+    render(data, render = true) {
         //Handling in case the data does not exist, example the user searching for something that does not exist:
         //So checking if the data exists OR if the data is an array AND if its empty:
         if (!data || Array.isArray(data) && data.length === 0) return this.renderError();
         this._data = data;
         const markup = this._generateMarkup();
+        if (!render) return markup;
         //Removing the default message:
         this._clear();
         //Inserting the markup to the html:
@@ -1362,9 +1469,8 @@ parcelHelpers.defineInteropFlag(exports);
 //Importing the parent View class:
 var _view = require("./View");
 var _viewDefault = parcelHelpers.interopDefault(_view);
-//Since when we use the parcel we loose the folder structure, we have to change the src of the icons in the template literal that is rendering the recipe from the API. One way to fix this is to import those images:
-var _iconsSvg = require("url:../../img/icons.svg");
-var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+var _previewViewJs = require("./previewView.js");
+var _previewViewJsDefault = parcelHelpers.interopDefault(_previewViewJs);
 class ResultsView extends _viewDefault.default {
     _parentElement = document.querySelector(".results");
     //Private field for the default error message;
@@ -1374,31 +1480,50 @@ class ResultsView extends _viewDefault.default {
     //Method to generate html code so the parent method View.render can load it to the user screen:
     _generateMarkup() {
         //Since the result comming from the controller will be an array, we need to loop over it and then join it all together:
-        return this._data.map(this._generateMarkupPreview).join("");
+        return this._data.map((result)=>_previewViewJsDefault.default.render(result, false)
+        ).join("");
     }
+}
+exports.default = new ResultsView();
+
+},{"./View":"9dvKv","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","./previewView.js":"i65ZK"}],"i65ZK":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+// //Class responsible for generating the preview html code for the result and bookmark view
+var _viewJs = require("./View.js");
+var _viewJsDefault = parcelHelpers.interopDefault(_viewJs);
+var _iconsSvg = require("url:../../img/icons.svg"); // Parcel 2
+var _iconsSvgDefault = parcelHelpers.interopDefault(_iconsSvg);
+class PreviewView extends _viewJsDefault.default {
+    _parentElement = "";
     //Method responsible for generating the html for each result, to be passed in the map method for the _data:
-    _generateMarkupPreview(result) {
+    _generateMarkup() {
         //Functionality to make the current recipe selected, active
         //Getting the id from the search bar, minus the #symbol:
         const id = window.location.hash.slice(1);
         return `
       <li class="preview">
-        <a class="preview__link ${result.id === id ? "preview__link--active" : ""}" href="#${result.id}">
-        <figure class="preview__fig">
-            <img src="${result.image}" alt="${result.title}" />
-        </figure>
-        <div class="preview__data">
-          <h4 class="preview__title">${result.title}</h4>
-          <p class="preview__publisher">${result.publisher}</p>
-        </div>
+        <a class="preview__link ${this._data.id === id ? "preview__link--active" : ""}" href="#${this._data.id}">
+          <figure class="preview__fig">
+            <img src="${this._data.image}" alt="${this._data.title}" />
+          </figure>
+          <div class="preview__data">
+            <h4 class="preview__title">${this._data.title}</h4>
+            <p class="preview__publisher">${this._data.publisher}</p>
+            <div class="preview__user-generated ${this._data.key ? "" : "hidden"}">
+              <svg>
+              <use href="${_iconsSvgDefault.default}#icon-user"></use>
+              </svg>
+            </div>
+          </div>
         </a>
       </li>
     `;
     }
 }
-exports.default = new ResultsView();
+exports.default = new PreviewView();
 
-},{"./View":"9dvKv","url:../../img/icons.svg":"5jwFy","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"2PAUD":[function(require,module,exports) {
+},{"./View.js":"9dvKv","url:../../img/icons.svg":"5jwFy","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}],"2PAUD":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 //Class responsible for rendering the page btn in the user seraches:
@@ -14524,7 +14649,8 @@ parcelHelpers.defineInteropFlag(exports);
 //Importing the parent View class:
 var _view = require("./View");
 var _viewDefault = parcelHelpers.interopDefault(_view);
-//Importing the PreviewView to serve as a parent to generate the html code:
+var _previewViewJs = require("./previewView.js");
+var _previewViewJsDefault = parcelHelpers.interopDefault(_previewViewJs);
 class BookmarksView extends _viewDefault.default {
     _parentElement = document.querySelector(".bookmarks__list");
     //Private field for the default error message;
@@ -14538,29 +14664,63 @@ class BookmarksView extends _viewDefault.default {
     //Method to generate html code so the parent method View.render can load it to the user screen:
     _generateMarkup() {
         //Since the result comming from the controller will be an array, we need to loop over it and then join it all together:
-        return this._data.map(this._generateMarkupPreview).join("");
-    }
-    //Method responsible for generating the html for each result, to be passed in the map method for the _data:
-    _generateMarkupPreview(result) {
-        //Functionality to make the current recipe selected, active
-        //Getting the id from the search bar, minus the #symbol:
-        const id = window.location.hash.slice(1);
-        return `
-      <li class="preview">
-        <a class="preview__link ${result.id === id ? "preview__link--active" : ""}" href="#${result.id}">
-        <figure class="preview__fig">
-            <img src="${result.image}" alt="${result.title}" />
-        </figure>
-        <div class="preview__data">
-          <h4 class="preview__title">${result.title}</h4>
-          <p class="preview__publisher">${result.publisher}</p>
-        </div>
-        </a>
-      </li>
-    `;
+        return this._data.map((bookmark)=>_previewViewJsDefault.default.render(bookmark, false)
+        ).join("");
     }
 }
 exports.default = new BookmarksView();
+
+},{"./View":"9dvKv","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV","./previewView.js":"i65ZK"}],"Lo2AT":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+//Class responsible for rendering the page btn in the user seraches:
+//Importing the parent View class:
+var _view = require("./View");
+var _viewDefault = parcelHelpers.interopDefault(_view);
+class AddRecipeView extends _viewDefault.default {
+    _parentElement = document.querySelector(".upload");
+    _message = "Recipe was successfuly uploaded!";
+    _window = document.querySelector(".add-recipe-window");
+    _overlay = document.querySelector(".overlay");
+    _btnOpen = document.querySelector(".nav__btn--add-recipe");
+    _btnClose = document.querySelector(".btn--close-modal");
+    //Adding a constructor because we want this function to run as soon as the page loads:
+    constructor(){
+        super();
+        this._addHandlerShowWindow();
+        this._addHandlerCloseWindow();
+    }
+    //Method to listen to the btns:
+    _addHandlerShowWindow() {
+        this._btnOpen.addEventListener("click", this.toggleWindow.bind(this));
+    }
+    //Method to close:
+    _addHandlerCloseWindow() {
+        this._btnClose.addEventListener("click", this.toggleWindow.bind(this));
+        this._overlay.addEventListener("click", this.toggleWindow.bind(this));
+    }
+    //Removing the hidden class from the elements so we can see the modal window, and blur the background with the overlay
+    toggleWindow() {
+        this._overlay.classList.toggle("hidden");
+        this._window.classList.toggle("hidden");
+    }
+    //Handle the form submition:
+    addHandlerUploar(handler) {
+        this._parentElement.addEventListener("submit", function(e) {
+            e.preventDefault();
+            //Using FormData to retrieve all the data entered in the inputs at once, spreading the result value into an array:
+            const dataArr = [
+                ...new FormData(this)
+            ];
+            //Now converting the array to an object using the fromEntries:
+            const data = Object.fromEntries(dataArr);
+            handler(data);
+        });
+    }
+    _generateMarkup() {
+    }
+}
+exports.default = new AddRecipeView();
 
 },{"./View":"9dvKv","@parcel/transformer-js/src/esmodule-helpers.js":"ciiiV"}]},["kS06O","lA0Es"], "lA0Es", "parcelRequire3a11")
 

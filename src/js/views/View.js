@@ -7,7 +7,7 @@ import icons from "url:../../img/icons.svg";
 export default class View {
 	_data;
 
-	render(data) {
+	render(data, render = true) {
 		//Handling in case the data does not exist, example the user searching for something that does not exist:
 		//So checking if the data exists OR if the data is an array AND if its empty:
 		if (!data || (Array.isArray(data) && data.length === 0))
@@ -16,6 +16,9 @@ export default class View {
 		this._data = data;
 
 		const markup = this._generateMarkup();
+
+		if (!render) return markup;
+
 		//Removing the default message:
 		this._clear();
 

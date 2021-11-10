@@ -10,15 +10,19 @@ import resultsView from "./views/resultsView.js";
 import paginationView from "./views/paginationView.js";
 //Importing the bookmarks view:
 import bookmarksView from "./views/bookmarksView.js";
+//Importing the add recipe view:
+import addRecipeView from "./views/addRecipeView.js";
+//Getting the modal close variable
+import { MODAL_CLOSE_SEC } from "./config.js";
 
 //Imports for parcel to use when building to be able to polyfill
 import "core-js/stable";
 import "regenerator-runtime/runtime";
 
 //Hot reload for Percel:
-if (module.hot) {
-	module.hot.accept();
-}
+// if (module.hot) {
+// 	module.hot.accept();
+// }
 
 //API Call:
 async function controlRecipes() {
@@ -55,14 +59,14 @@ async function controlRecipes() {
 //Function resposible for calling the model function to search the recipes, passing in the query. Since the model function returns a promise, we have to handle that as well:
 async function controlSearchResults() {
 	try {
+		//Rendering the spinner when the results are loading:
+		resultsView.renderSpinner();
+
 		//Getting the query for the api call from the view:
 		const query = searchView.getQuery();
 
 		//Guard clause in case there is no query:
 		if (!query) return;
-
-		//Rendering the spinner when the results are loading:
-		resultsView.renderSpinner();
 
 		//No need to store it in a variable, since the model already saves it to the state object. Also have to await because it is a async function:
 		await model.loadSearchResults(query);
@@ -112,6 +116,36 @@ function controlBookmarks() {
 	bookmarksView.render(model.state.bookmarks);
 }
 
+//Method for adding our own recipe:
+async function controlAddRecipe(newRecipe) {
+	//Using the try catch to return any errors if the user does not input in the right format:
+	try {
+		//render spinner
+		addRecipeView.renderSpinner();
+
+		await model.uploadRecipe(newRecipe);
+
+		//Rendering the created recipe to the user:
+		recipeView.render(model.state.recipe);
+
+		//Displaying success message:
+		addRecipeView.renderMessage();
+
+		// Render bookmark view
+		bookmarksView.render(model.state.bookmarks);
+
+		// Change ID in URL
+		window.history.pushState(null, "", `#${model.state.recipe.id}`);
+
+		//Closing the form after the timeout to display a success message:
+		setTimeout(function () {
+			addRecipeView.toggleWindow();
+		}, MODAL_CLOSE_SEC * 1000);
+	} catch (error) {
+		addRecipeView.renderError(error.message);
+	}
+}
+
 function init() {
 	//Using the PubSub Design Pattern;
 	//Passing the subscriber (controlRecipes) to the publisher in the recipeView, so it can handle the event listeners:
@@ -130,6 +164,8 @@ function init() {
 	recipeView.addHandlerAddBookmark(controlAddBookmark);
 
 	bookmarksView.addHandlerRender(controlBookmarks);
+
+	addRecipeView.addHandlerUploar(controlAddRecipe);
 }
 
 init();

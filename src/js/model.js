@@ -1,7 +1,7 @@
 //Importing the config file, so we can use the API url and other constant variables:
-import { API_URL, RES_PER_PAGE } from "./config";
+import { API_URL, RES_PER_PAGE, KEY } from "./config";
 //Importing the helper file to get access to those functions:
-import { getJSON } from "./helpers";
+import { getJSON, sendJSON } from "./helpers";
 
 //Exporting the State object, responsible for keeping all the data for the app:
 export const state = {
@@ -17,6 +17,27 @@ export const state = {
 	bookmarks: [],
 };
 
+//Function to create the recipe object by receiving from the api:
+function createRecipeObject(data) {
+	//Creating a new variable to manipulate the recipe result from the call:
+	// let recipe = data.data.recipe;
+	//Since they have the same name we can use destructuring already:
+	const { recipe } = data.data;
+	//Now just renaming the properties name and assigning it to the state variable:
+	return {
+		id: recipe.id,
+		title: recipe.title,
+		publisher: recipe.publisher,
+		sourceUrl: recipe.source_url,
+		image: recipe.image_url,
+		servings: recipe.servings,
+		cookingTime: recipe.cooking_time,
+		ingredients: recipe.ingredients,
+		//Adding the property key, but only for the recipes we created:
+		...(recipe.key && { key: recipe.key }),
+	};
+}
+
 //Exporting the load recipe function so we can use it in the controller:
 //Passing the id as a parameter because the controller is the one that will get it:
 export async function loadRecipe(id) {
@@ -25,21 +46,8 @@ export async function loadRecipe(id) {
 		//And since the return of that function will be the resolve value of the promise, making the data here another promise, we have to also await;
 		const data = await getJSON(`${API_URL}${id}`);
 
-		//Creating a new variable to manipulate the recipe result from the call:
-		// let recipe = data.data.recipe;
-		//Since they have the same name we can use destructuring already:
-		const { recipe } = data.data;
-		//Now just renaming the properties name and assigning it to the state variable:
-		state.recipe = {
-			id: recipe.id,
-			title: recipe.title,
-			publisher: recipe.publisher,
-			sourceUrl: recipe.source_url,
-			image: recipe.image_url,
-			servings: recipe.servings,
-			cookingTime: recipe.cooking_time,
-			ingredients: recipe.ingredients,
-		};
+		//Putting the created object in the state:
+		state.recipe = createRecipeObject(data);
 
 		//Now checking to see if there is a recipe already loaded in the bookmarks, so we attatch the bookmarked property and render the bookmarked icon:
 		//So every recipe we load will habe the bookmarked property to either true or false;
@@ -139,6 +147,47 @@ export function deleteBookmark(id) {
 
 	//Calling the persist bookmark
 	persistBookmark();
+}
+
+//Function to upload the created recipe to the API:
+export async function uploadRecipe(newRecipe) {
+	try {
+		//Getting the ingredients from the object, first converting back to an array, then using the filter method to get only the ingredients:
+		//Also filtering out the empty inputs, in case the user uses less ingredients;
+		const ingredients = Object.entries(newRecipe)
+			.filter((entry) => entry[0].startsWith("ingredient") && entry[1] !== "")
+			.map((ing) => {
+				//Now destructuring and replacing the blank spaces and spliting by the comma:
+				const ingArr = ing[1].replaceAll(" ", "").split(",");
+
+				//Checking if the array has the right length of 3:
+				if (ingArr.length !== 3) throw new Error("Wrong ingredient format.");
+
+				const [quantity, unit, description] = ingArr;
+
+				return { quantity: quantity ? +quantity : null, unit, description };
+			});
+
+		const recipe = {
+			title: newRecipe.title,
+			source_url: newRecipe.sourceUrl,
+			image_url: newRecipe.image,
+			publisher: newRecipe.publisher,
+			cooking_time: +newRecipe.cookingTime,
+			servings: +newRecipe.servings,
+			ingredients,
+		};
+
+		const data = await sendJSON(`${API_URL}?key=${KEY}`, recipe);
+
+		//Creating the object from the data of the new recipe
+		state.recipe = createRecipeObject(data);
+
+		//Adding the created recipe to the bookmarks:
+		addBookmark(state.recipe);
+	} catch (error) {
+		throw error;
+	}
 }
 
 //Loading the recipes from the local storage bookmarks when the application starts

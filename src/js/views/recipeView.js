@@ -5,7 +5,7 @@ import View from "./View";
 import icons from "url:../../img/icons.svg";
 
 //Importing a external library, fractional, to show the recipes number like fractions, instead of like 0.5;
-import { Fraction } from "fractional";
+// import { Fraction } from "fractional";
 
 //Extending the parent class View, to inherit all the methods:
 class RecipeView extends View {
@@ -160,7 +160,7 @@ class RecipeView extends View {
 					<use href="${icons}#icon-check"></use>
 			</svg>
 			<div class="recipe__quantity">${
-				ing.quantity ? new Fraction(ing.quantity).toString() : ""
+				ing.quantity ? ing.quantity.toString() : ""
 			}</div>
 			<div class="recipe__description">
 					<span class="recipe__unit">${ing.unit}</span>
